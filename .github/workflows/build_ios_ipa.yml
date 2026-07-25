@@ -26,11 +26,13 @@ jobs:
         run: flutter pub get
 
       - name: 🍏 Подготовка конфигурации Flutter для iOS
-        run: flutter build ios --config-only --release
+        run: flutter build ios --config-only --release --no-codesign
 
       - name: 🔨 Компиляция Xcode бинарника (Runner.app) без проверки Apple Team
         run: |
           cd ios
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' Runner.xcodeproj/project.pbxproj || true
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' Runner.xcodeproj/project.pbxproj || true
           xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -derivedDataPath ../build/ios/xcodebuild
 
       - name: 🗜 Упаковка Runner.app в архив формата .ipa (Payload)
