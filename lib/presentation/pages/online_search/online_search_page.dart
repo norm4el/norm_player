@@ -160,11 +160,20 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                                 width: 52,
                                 height: 52,
                                 color: AppTheme.surfaceDark,
-                                child: Image.asset(
-                                  'assets/images/img_onboarding.jpg',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(
-                                    Icons.music_note,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.surfaceDark,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        AppTheme.primaryColor.withOpacity(0.25),
+                                        AppTheme.accentColor.withOpacity(0.12),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.music_note_rounded,
                                     color: AppTheme.primaryColor,
                                     size: 26,
                                   ),

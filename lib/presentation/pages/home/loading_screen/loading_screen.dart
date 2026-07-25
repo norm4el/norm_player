@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:norm_player/presentation/pages/on_boarding/on_boarding_screen.dart';
-
+import 'package:norm_player/presentation/pages/bottom_navigation/bottom_navigation_page.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -25,12 +24,11 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // navigate to onboarding screen after delay of 4s
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 1), () {
       Navigator.pushReplacement(
         context,
         PageTransition(
-            child: OnBoardingScreen(), type: PageTransitionType.fade),
+            child: const MusicBottomSheet(), type: PageTransitionType.fade),
       );
     });
 

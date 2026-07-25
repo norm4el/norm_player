@@ -11,7 +11,6 @@ import 'package:norm_player/presentation/providers/favorites/fav_db_music/music_
 import 'package:norm_player/presentation/providers/favorites/is_favorites.dart';
 import 'package:norm_player/presentation/providers/favorites/get_id_from_fav/get_music_entity.dart';
 import 'package:norm_player/presentation/providers/play_list/get_all_music_data.dart';
-import 'package:norm_player/utils/dynamic_sizes/dynamic_sizes.dart';
 import 'package:norm_player/utils/theme/app_theme.dart';
 
 class PlayListTile extends ConsumerWidget {
@@ -82,15 +81,21 @@ class PlayListTile extends ConsumerWidget {
               child: Container(
                 width: 52,
                 height: 52,
-                color: AppTheme.surfaceDark,
-                child: Image.asset(
-                  'assets/images/img_onboarding.jpg',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.music_note,
-                    color: AppTheme.primaryColor,
-                    size: 26,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceDark,
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryColor.withOpacity(0.25),
+                      AppTheme.accentColor.withOpacity(0.12),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                ),
+                child: const Icon(
+                  Icons.music_note_rounded,
+                  color: AppTheme.primaryColor,
+                  size: 26,
                 ),
               ),
             ),

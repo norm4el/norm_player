@@ -7,7 +7,6 @@ import 'package:norm_player/presentation/providers/favorites/fav_db_music/music_
 import 'package:norm_player/presentation/providers/music/get_all_music.dart';
 import 'package:norm_player/presentation/providers/search_provider/search.dart';
 import 'package:norm_player/presentation/widgets/home_widgets/progress_indicator.dart';
-import 'package:norm_player/utils/dynamic_sizes/dynamic_sizes.dart';
 import 'package:norm_player/utils/theme/app_theme.dart';
 
 class CurrentPlayingPage extends ConsumerWidget {
@@ -86,12 +85,25 @@ class CurrentPlayingPage extends ConsumerWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(28),
-                        child: Image.asset(
-                          'assets/images/img_onboarding.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
+                        child: Container(
+                          decoration: BoxDecoration(
                             color: AppTheme.surfaceDark,
-                            child: const Icon(Icons.music_note, color: AppTheme.primaryColor, size: 80),
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.primaryColor.withOpacity(0.35),
+                                AppTheme.surfaceDark,
+                                AppTheme.accentColor.withOpacity(0.2),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.music_note_rounded,
+                              color: AppTheme.primaryColor,
+                              size: 80,
+                            ),
                           ),
                         ),
                       ),

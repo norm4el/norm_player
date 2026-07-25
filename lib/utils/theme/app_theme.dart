@@ -8,6 +8,7 @@ class AppTheme {
   static const Color surfaceGlass = Color(0xDD151524);
   static const Color primaryColor = Color(0xFF3D7EFF); // Неоновый синий акцент как на скриншоте
   static const Color accentCyan = Color(0xFF00D4FF);
+  static const Color accentColor = Color(0xFF00D4FF);
   static const Color accentPink = Color(0xFFFF2E93);
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFF8D8D9E);

@@ -50,16 +50,24 @@ Widget currentPlayingMusic(List<SongModel> song, WidgetRef ref) {
                   // Квадратная обложка со скруглением
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: SizedBox(
+                    child: Container(
                       width: 68,
                       height: 68,
-                      child: Image.asset(
-                        'assets/images/img_onboarding.jpg',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: AppTheme.backgroundDark,
-                          child: const Icon(Icons.music_note, color: AppTheme.primaryColor, size: 32),
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundDark,
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.primaryColor.withOpacity(0.3),
+                            AppTheme.accentColor.withOpacity(0.15),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
+                      ),
+                      child: const Icon(
+                        Icons.music_note_rounded,
+                        color: AppTheme.primaryColor,
+                        size: 32,
                       ),
                     ),
                   ),
