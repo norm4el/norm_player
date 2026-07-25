@@ -45,16 +45,9 @@ class AppTheme {
         bodyLarge: GoogleFonts.inter(color: textPrimary, fontSize: 16, fontWeight: FontWeight.normal),
         bodyMedium: GoogleFonts.inter(color: textSecondary, fontSize: 14, fontWeight: FontWeight.normal),
       ),
-      cardTheme: CardThemeData(
-        color: surfaceDark,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white.withOpacity(0.06), width: 1),
-        ),
-      ),
     );
   }
+
 
   // Стили для карточек (Modern Slate Decoration)
   static BoxDecoration glassDecoration({double radius = 20, Color? color}) {
