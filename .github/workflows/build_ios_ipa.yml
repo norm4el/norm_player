@@ -27,7 +27,7 @@ jobs:
 
       - name: 🍏 Сборка релизного iOS приложения (Runner.app)
         # Собираем приложение без принудительной подписи Xcode, чтобы гарантированно создать чистый билд
-        run: flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign -- CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=
 
       - name: 🗜 Упаковка Runner.app в архив формата .ipa (Payload)
         run: |
