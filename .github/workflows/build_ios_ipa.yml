@@ -12,10 +12,6 @@ jobs:
     name: Build Flutter iOS App (.ipa)
     runs-on: macos-14 # Используем современный macOS Apple Silicon чип для быстрой сборки
 
-    defaults:
-      run:
-        working-directory: ./Viola_music_app
-
     steps:
       - name: 📥 Клонирование репозитория
         uses: actions/checkout@v4
@@ -50,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NormPlayer-iOS-IPA
-          path: Viola_music_app/build/ios/iphoneos/NormPlayer_iOS.ipa
+          path: build/ios/iphoneos/NormPlayer_iOS.ipa
           retention-days: 14
 
       # =========================================================================
