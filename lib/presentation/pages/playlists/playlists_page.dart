@@ -7,6 +7,9 @@ import 'package:norm_player/presentation/providers/playlists/local_playlists_pro
 import 'package:norm_player/presentation/providers/history/history_provider.dart';
 import 'package:norm_player/presentation/providers/analytics/analytics_provider.dart';
 import 'package:norm_player/presentation/providers/smart_wave/smart_wave_provider.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:norm_player/presentation/providers/play_list/get_all_music_data.dart';
+import 'package:norm_player/presentation/providers/current_playing/music_player_provider.dart';
 import 'package:norm_player/presentation/providers/music/get_all_music.dart';
 import 'package:norm_player/presentation/widgets/home_widgets/play_list_tile_widget.dart';
 import 'package:norm_player/utils/theme/app_theme.dart';
@@ -413,52 +416,182 @@ class PlaylistsPage extends ConsumerWidget {
   }
 
   void _openPlaylistDetails(BuildContext context, WidgetRef ref, LocalPlaylist playlist) {
-    final allSongs = ref.read(getAllMusicProvider).valueOrNull ?? [];
-    final playlistSongs = allSongs.where((s) => playlist.songPaths.contains(s.data)).toList();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.backgroundDark,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.8,
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(playlist.name, style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                    Text('${playlistSongs.length} треков', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
-                  ],
-                ),
+        return Consumer(
+          builder: (context, ref, child) {
+            final playlists = ref.watch(localPlaylistsProvider);
+            final currentPlaylist = playlists.firstWhere((p) => p.id == playlist.id, orElse: () => playlist);
+            final allSongs = ref.watch(getAllMusicProvider).valueOrNull ?? [];
+            final playlistSongs = allSongs.where((s) => currentPlaylist.songPaths.contains(s.data)).toList();
+
+            return SizedBox(
+              height: MediaQuery.of(context).size.height * 0.85,
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                currentPlaylist.name,
+                                style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text('${playlistSongs.length} треков', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryColor,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              ),
+                              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                              label: const Text('Запустить всё ▶', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              onPressed: playlistSongs.isEmpty
+                                  ? null
+                                  : () async {
+                                      final paths = playlistSongs.map((e) => e.data).toList();
+                                      final sources = paths.map((p) => AudioSource.file(p)).toList();
+                                      await ref.read(musicPlayerProvider).setAudioSource(
+                                            ConcatenatingAudioSource(children: sources),
+                                            initialIndex: 0,
+                                          );
+                                      ref.read(musicPlayerProvider).play();
+                                      if (context.mounted) Navigator.pop(context);
+                                    },
+                            ),
+                            const SizedBox(width: 10),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              ),
+                              icon: const Icon(Icons.add_rounded, color: AppTheme.primaryColor),
+                              label: const Text('Добавить треки', style: TextStyle(color: Colors.white)),
+                              onPressed: () => _showAddTracksToPlaylistModal(context, ref, currentPlaylist),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(color: Colors.white10),
+                  Expanded(
+                    child: playlistSongs.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.queue_music_rounded, size: 56, color: AppTheme.textSecondary),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'В плейлисте пока нет треков.',
+                                    style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Нажмите «Добавить треки» выберите песни из медиатеки.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: playlistSongs.length,
+                            itemBuilder: (context, index) {
+                              final song = playlistSongs[index];
+                              return PlayListTile(
+                                title: song.title,
+                                artist: song.artist ?? 'Неизвестный исполнитель',
+                                data: song.data,
+                                index: index,
+                                listOfDatas: playlistSongs.map((e) => e.data).toList(),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: playlistSongs.isEmpty
-                    ? Center(
-                        child: Text('Плейлист пуст. Добавляйте треки из списков.', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
-                      )
-                    : ListView.builder(
-                        itemCount: playlistSongs.length,
-                        itemBuilder: (context, index) {
-                          final song = playlistSongs[index];
-                          return PlayListTile(
-                            title: song.title,
-                            artist: song.artist ?? '',
-                            data: song.data,
-                            index: index,
-                            listOfDatas: playlistSongs.map((e) => e.data).toList(),
-                          );
-                        },
-                      ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddTracksToPlaylistModal(BuildContext context, WidgetRef ref, LocalPlaylist playlist) {
+    final allSongs = ref.read(getAllMusicProvider).valueOrNull ?? [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surfaceDark,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final playlists = ref.watch(localPlaylistsProvider);
+            final currentPlaylist = playlists.firstWhere((p) => p.id == playlist.id, orElse: () => playlist);
+
+            return SizedBox(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text('Выбор треков для "${currentPlaylist.name}"', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: allSongs.length,
+                      itemBuilder: (context, index) {
+                        final song = allSongs[index];
+                        final isAdded = currentPlaylist.songPaths.contains(song.data);
+
+                        return CheckboxListTile(
+                          activeColor: AppTheme.primaryColor,
+                          title: Text(song.title, style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600)),
+                          subtitle: Text(song.artist ?? 'Исполнитель', style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12)),
+                          value: isAdded,
+                          onChanged: (bool? checked) {
+                            if (checked == true) {
+                              ref.read(localPlaylistsProvider.notifier).addSongToPlaylist(currentPlaylist.id, song.data);
+                            } else {
+                              ref.read(localPlaylistsProvider.notifier).removeSongFromPlaylist(currentPlaylist.id, song.data);
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

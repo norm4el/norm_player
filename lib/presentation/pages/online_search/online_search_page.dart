@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:norm_player/data/data_source/online_music/online_music_service.dart';
 import 'package:norm_player/presentation/providers/online_music_provider/online_music_provider.dart';
 import 'package:norm_player/utils/theme/app_theme.dart';
@@ -17,15 +18,15 @@ class OnlineSearchPage extends ConsumerStatefulWidget {
 class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
   final TextEditingController textEditingController = TextEditingController();
 
-  // Быстрые варианты для нажатия
+  // Быстрые варианты популярнейших исполнителей
   final List<String> searchSuggestions = [
+    'Littlil',
+    'Kizaru',
+    'Miyagi',
     'The Weeknd',
-    'Miley Cyrus',
     'Radiohead',
     'Ed Sheeran',
     'Taylor Swift',
-    'Daft Punk',
-    'Lofi Beats',
     'Phonk',
   ];
 
@@ -33,6 +34,24 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
   void dispose() {
     textEditingController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openGoogleSearch(String query) async {
+    final String searchQuery = query.trim().isEmpty ? 'Littlil' : query.trim();
+    final Uri url = Uri.parse('https://www.google.com/search?q=${Uri.encodeComponent("$searchQuery скачать mp3")}');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(url, mode: LaunchMode.inAppWebView);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть браузер')),
+        );
+      }
+    }
   }
 
   @override
@@ -50,18 +69,35 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Text(
-                  'Онлайн-поиск',
-                  style: GoogleFonts.outfit(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Поиск в Гугле 🌐',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Открыть Google',
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.language_rounded, color: AppTheme.primaryColor, size: 24),
+                      ),
+                      onPressed: () => _openGoogleSearch(textEditingController.text),
+                    ),
+                  ],
                 ),
               ),
             ),
-            // Поисковая строка
+            // Поисковая строка Google
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
@@ -69,8 +105,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                   controller: textEditingController,
                   style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
                   onSubmitted: (value) {
-                    ref.read(onlineSearchProvider.notifier).searchSongs(value);
-                    setState(() {});
+                    _openGoogleSearch(value);
                   },
                   onChanged: (value) {
                     if (value.length > 2) {
@@ -81,7 +116,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                     setState(() {});
                   },
                   decoration: InputDecoration(
-                    hintText: 'Найти трек, исполнителя или альбом...',
+                    hintText: 'Искать в Google (например: Littlil)...',
                     hintStyle: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 15),
                     fillColor: AppTheme.surfaceDark,
                     filled: true,
@@ -90,17 +125,11 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                       borderRadius: BorderRadius.circular(16.0),
                       borderSide: BorderSide.none,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5), width: 1),
-                    ),
-                    suffixIcon: textEditingController.text.isEmpty
-                        ? const Icon(Icons.search, color: AppTheme.textSecondary)
-                        : IconButton(
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (textEditingController.text.isNotEmpty)
+                          IconButton(
                             icon: const Icon(Icons.close, color: AppTheme.textSecondary),
                             onPressed: () {
                               textEditingController.clear();
@@ -108,133 +137,124 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                               setState(() {});
                             },
                           ),
+                        IconButton(
+                          tooltip: 'Искать в Гугле',
+                          icon: const Icon(Icons.search, color: AppTheme.primaryColor),
+                          onPressed: () => _openGoogleSearch(textEditingController.text),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-            // Заголовок секции
+            // Карточка прямого поиска в Google
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceDark,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.travel_explore_rounded, size: 28, color: AppTheme.primaryColor),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Гугл Поиск треков 🌐',
+                              style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Открывает прямую выдачу Google для загрузки любых файлов.',
+                              style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                        onPressed: () => _openGoogleSearch(textEditingController.text),
+                        child: const Text('Гугл 🚀', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Популярные исполнители
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 child: Text(
-                  isSearching ? 'Результаты поиска' : 'Рекомендации по поиску',
+                  'Популярные исполнители:',
                   style: GoogleFonts.outfit(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
               ),
             ),
-            // Содержимое экрана при отсутствии запроса
-            if (!isSearching)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Информационный блок о живом веб-поиске
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceDark,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.08)),
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withOpacity(0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.travel_explore_rounded,
-                                size: 36,
-                                color: AppTheme.primaryColor,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              'Живой поиск музыки',
-                              style: GoogleFonts.outfit(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Вводите название любой песни или артиста в поле выше. Приложение выполнит поиск по онлайн-базам и позволит скачивать любые аудиофайлы прямо в локальную память.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                height: 1.4,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 10,
+                  children: searchSuggestions.map((tag) {
+                    final bool isLittlil = tag.toLowerCase() == 'littlil';
+                    return ActionChip(
+                      backgroundColor: isLittlil ? AppTheme.accentPink.withOpacity(0.2) : AppTheme.surfaceDark,
+                      side: BorderSide(color: isLittlil ? AppTheme.accentPink : Colors.white.withOpacity(0.08)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      avatar: Icon(
+                        isLittlil ? Icons.star_rounded : Icons.search,
+                        size: 16,
+                        color: isLittlil ? AppTheme.accentPink : AppTheme.primaryColor,
+                      ),
+                      label: Text(
+                        tag,
+                        style: GoogleFonts.inter(
+                          color: isLittlil ? AppTheme.accentPink : Colors.white,
+                          fontWeight: isLittlil ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 14,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Популярные запросы:',
-                        style: GoogleFonts.outfit(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 10,
-                        children: searchSuggestions.map((tag) {
-                          return ActionChip(
-                            backgroundColor: AppTheme.surfaceDark,
-                            side: BorderSide(color: Colors.white.withOpacity(0.08)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            avatar: const Icon(Icons.search, size: 16, color: AppTheme.primaryColor),
-                            label: Text(
-                              tag,
-                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                            ),
-                            onPressed: () {
-                              textEditingController.text = tag;
-                              ref.read(onlineSearchProvider.notifier).searchSongs(tag);
-                              setState(() {});
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
+                      onPressed: () {
+                        textEditingController.text = tag;
+                        _openGoogleSearch(tag);
+                      },
+                    );
+                  }).toList(),
                 ),
-              )
-            else
+              ),
+            ),
+            // Дополнительные результаты при поиске
+            if (isSearching)
               searchState.when(
                 data: (songs) {
-                  if (songs.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 60),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(Icons.cloud_off_rounded, size: 64, color: AppTheme.textSecondary.withOpacity(0.5)),
-                              const SizedBox(height: 16),
-                              Text('Треки не найдены в интернете', style: GoogleFonts.outfit(fontSize: 18, color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
+                  if (songs.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
                   return SliverList(
                     delegate: SliverChildBuilderDelegate(
                       childCount: songs.length,
@@ -253,25 +273,12 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                               ),
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: song.artworkUrl.isNotEmpty
-                                    ? Image.network(
-                                        song.artworkUrl,
-                                        width: 52,
-                                        height: 52,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Container(
-                                          width: 52,
-                                          height: 52,
-                                          color: AppTheme.surfaceDark,
-                                          child: const Icon(Icons.music_note, color: AppTheme.primaryColor),
-                                        ),
-                                      )
-                                    : Container(
-                                        width: 52,
-                                        height: 52,
-                                        color: AppTheme.surfaceDark,
-                                        child: const Icon(Icons.music_note, color: AppTheme.primaryColor),
-                                      ),
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  color: AppTheme.surfaceDark,
+                                  child: const Icon(Icons.music_note, color: AppTheme.primaryColor),
+                                ),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -294,7 +301,10 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                                   ],
                                 ),
                               ),
-                              _buildDownloadButton(song),
+                              IconButton(
+                                icon: const Icon(Icons.language, color: AppTheme.primaryColor),
+                                onPressed: () => _openGoogleSearch('${song.title} ${song.artist}'),
+                              ),
                             ],
                           ),
                         );
@@ -302,111 +312,13 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                     ),
                   );
                 },
-                error: (err, st) => SliverToBoxAdapter(
-                  child: Center(child: Text('Ошибка: $err', style: const TextStyle(color: Colors.red))),
-                ),
-                loading: () => const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
-                  ),
-                ),
-              ),
-            // Кнопка "Показать больше ∨" по центру в стиле Screen 3
-            if (!isSearching)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24.0),
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceDark,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.08)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Показать больше',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 18),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+                loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildDownloadButton(OnlineSong song) {
-    if (song.isDownloaded) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check, color: Colors.green, size: 16),
-            SizedBox(width: 4),
-            Text('Скачано', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      );
-    }
-
-    if (song.isDownloading) {
-      return SizedBox(
-        width: 44,
-        height: 44,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            CircularProgressIndicator(
-              value: song.downloadProgress > 0 ? song.downloadProgress : null,
-              color: AppTheme.primaryColor,
-              strokeWidth: 3,
-            ),
-            Text(
-              '${(song.downloadProgress * 100).toInt()}%',
-              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return IconButton(
-      tooltip: 'Скачать в локальную медиатеку',
-      icon: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withOpacity(0.15),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(Icons.arrow_downward_rounded, color: AppTheme.primaryColor, size: 20),
-      ),
-      onPressed: () {
-        ref.read(onlineSearchProvider.notifier).downloadSong(song);
-      },
     );
   }
 }
