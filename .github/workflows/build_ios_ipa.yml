@@ -25,11 +25,6 @@ jobs:
       - name: 📦 Установка зависимостей проекта
         run: flutter pub get
 
-      - name: 🎨 Генерация иконок и заставки
-        run: |
-          dart run flutter_launcher_icons
-          dart run flutter_native_splash:create
-
       - name: 🍏 Сборка релизного iOS приложения (Runner.app)
         # Собираем приложение без принудительной подписи Xcode, чтобы гарантированно создать чистый билд
         run: flutter build ios --release --no-codesign
