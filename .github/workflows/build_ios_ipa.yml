@@ -25,29 +25,30 @@ jobs:
       - name: 📦 Установка зависимостей проекта
         run: flutter pub get
 
-      - name: 🍏 Сборка релизного iOS приложения (Runner.app) без проверки подписи
+      - name: 🍏 Подготовка конфигурации Flutter для iOS
+        run: flutter build ios --config-only --release --no-codesign
+
+      - name: 🔨 Компиляция Xcode бинарника (Runner.app) с Ad-Hoc подписью
         run: |
           cd ios
           sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' Runner.xcodeproj/project.pbxproj || true
-          sed -i '' 's/CODE_SIGN_IDENTITY = ".*";//g' Runner.xcodeproj/project.pbxproj || true
-          sed -i '' 's/CODE_SIGNING_REQUIRED = YES;/CODE_SIGNING_REQUIRED = NO;/g' Runner.xcodeproj/project.pbxproj || true
-          sed -i '' 's/DEVELOPMENT_TEAM = .*;//g' Runner.xcodeproj/project.pbxproj || true
-          cd ..
-          flutter build ios --release --no-codesign
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "-";/g' Runner.xcodeproj/project.pbxproj || true
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Distribution";/CODE_SIGN_IDENTITY = "-";/g' Runner.xcodeproj/project.pbxproj || true
+          xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE="Manual" DEVELOPMENT_TEAM="" PROVISIONING_PROFILE_SPECIFIER="" -derivedDataPath ../build/ios/xcodebuild
 
       - name: 🗜 Упаковка Runner.app в архив формата .ipa (Payload)
         run: |
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          mv Runner.app Payload/
+          mkdir -p build/ios/Payload
+          mv build/ios/xcodebuild/Build/Products/Release-iphoneos/Runner.app build/ios/Payload/
+          cd build/ios
           zip -r -9 NormPlayer_iOS.ipa Payload
-          echo "IPA файл успешно собран: build/ios/iphoneos/NormPlayer_iOS.ipa"
+          echo "IPA файл успешно собран: build/ios/NormPlayer_iOS.ipa"
 
       - name: 📤 Сохранение готового .ipa как артефакт GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: NormPlayer-iOS-IPA
-          path: build/ios/iphoneos/NormPlayer_iOS.ipa
+          path: build/ios/NormPlayer_iOS.ipa
           retention-days: 14
 
       # =========================================================================
