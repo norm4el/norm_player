@@ -1,6 +1,6 @@
 {
-    "name": "viola",
-    "short_name": "viola",
+    "name": "Norm Player",
+    "short_name": "Norm Player",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,84 +1,109 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:viola/domain/entity/songs_entity.dart';
-import 'package:viola/presentation/providers/favorites/fav_db_music/music_db.dart';
-import 'package:viola/presentation/widgets/home_widgets/play_list_tile_widget.dart';
-import 'package:viola/utils/theme/app_theme.dart';
+import 'package:norm_player/domain/entity/songs_entity.dart';
+import 'package:norm_player/presentation/providers/favorites/fav_db_music/music_db.dart';
+import 'package:norm_player/presentation/widgets/home_widgets/play_list_tile_widget.dart';
+import 'package:norm_player/utils/theme/app_theme.dart';
 
 class FavoritePage extends ConsumerWidget {
   const FavoritePage({super.key, required this.controller});
-  // scrollController for scrollToHide
   final ScrollController controller;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     List<SongsEntity> favSongs = ref.watch(musicDbProvider);
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: AppTheme.backgroundDark,
-        elevation: 0,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.accentPink.withOpacity(0.5)),
+      body: SafeArea(
+        child: CustomScrollView(
+          controller: controller,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Избранное',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${favSongs.length} трека',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.textSecondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.more_horiz, color: Colors.white, size: 28),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
               ),
-              child: const Icon(Icons.favorite, color: AppTheme.accentPink, size: 22),
             ),
-            const SizedBox(width: 12),
-            Text(
-              'Избранное',
-              style: GoogleFonts.outfit(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-              ),
-            ),
+            favSongs.isEmpty
+                ? SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.favorite_border_rounded, size: 64, color: AppTheme.textSecondary.withOpacity(0.5)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'В избранном пока пусто',
+                              style: GoogleFonts.outfit(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Нажимайте на сердечко при прослушивании треков, чтобы они появились здесь',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      childCount: favSongs.length,
+                      (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          child: PlayListTile(
+                            isPlayingFromFav: true,
+                            artist: favSongs[index].artist ?? 'Unknown Artist',
+                            data: favSongs[index].data,
+                            title: favSongs[index].title!,
+                            index: index,
+                            listOfDatas: ref.read(musicDbProvider).map((e) => e.data).toList(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
-      body: favSongs.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.favorite_border_rounded, size: 80, color: Colors.grey[700]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'У вас пока нет избранных треков.\nНажимайте на сердечко в плеере!',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              controller: controller,
-              padding: const EdgeInsets.only(bottom: 110, left: 12, right: 12),
-              itemCount: favSongs.length,
-              itemBuilder: (context, index) {
-                return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: AppTheme.glassDecoration(radius: 16),
-                  child: PlayListTile(
-                    isPlayingFromFav: true,
-                    artist: favSongs[index].artist ?? 'unknown',
-                    data: favSongs[index].data,
-                    title: favSongs[index].title!,
-                    index: index,
-                    listOfDatas: ref.read(musicDbProvider).map((e) => e.data).toList(),
-                  ),
-                );
-              },
-            ),
     );
   }
 }
-

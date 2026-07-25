@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viola/data/data_source/online_music/online_music_service.dart';
-import 'package:viola/presentation/providers/music/get_all_music.dart';
+import 'package:norm_player/data/data_source/online_music/online_music_service.dart';
+import 'package:norm_player/presentation/providers/music/get_all_music.dart';
 
 final onlineSearchProvider = StateNotifierProvider<OnlineSearchNotifier, AsyncValue<List<OnlineSong>>>((ref) {
   return OnlineSearchNotifier(ref);

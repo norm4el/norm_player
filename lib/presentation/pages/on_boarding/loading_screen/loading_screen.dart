@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:viola/data/data_source/shared_preferences/shared_perf.dart';
-import 'package:viola/presentation/pages/bottom_navigation/bottom_navigation_page.dart';
-import 'package:viola/presentation/pages/on_boarding/on_boarding_screen.dart';
+import 'package:norm_player/data/data_source/shared_preferences/shared_perf.dart';
+import 'package:norm_player/presentation/pages/bottom_navigation/bottom_navigation_page.dart';
+import 'package:norm_player/presentation/pages/on_boarding/on_boarding_screen.dart';
 
 import 'package:page_transition/page_transition.dart';
 
@@ -31,13 +31,13 @@ class LoadingScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              "assets/animations/viola_logo.png",
+              "assets/animations/norm_logo.png",
               width: 100,
               height: 100,
               fit: BoxFit.cover,
             ),
             const Text(
-              'Viola',
+              'Norm Player',
               style: TextStyle(
                   fontFamily: 'Pacifico',
                   color: Colors.black,

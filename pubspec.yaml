@@ -1,7 +1,7 @@
-name: viola
-description: "Norm Player — Premium Offline & Cloud Music Player."
+name: norm_player
+description: "Norm Player — Premium Dark Mode Music Player."
 publish_to: 'none'
-version: 0.1.0
+version: 1.0.0
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -52,14 +52,14 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   remove_alpha_ios: true
-  image_path: "assets/images/viola_logo.png"
+  image_path: "assets/images/norm_logo.png"
   min_sdk_android: 21
 
 flutter_native_splash:
   color: "#0B0B14"
-  image: "assets/images/viola_logo.png"
+  image: "assets/images/norm_logo.png"
   android_12:
-    image: "assets/images/viola_logo.png"
+    image: "assets/images/norm_logo.png"
     color: "#0B0B14"
 
 flutter:

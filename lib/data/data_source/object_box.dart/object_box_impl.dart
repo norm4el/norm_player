@@ -1,5 +1,5 @@
-import 'package:viola/domain/entity/songs_entity.dart';
-import 'package:viola/objectbox.g.dart';
+import 'package:norm_player/domain/entity/songs_entity.dart';
+import 'package:norm_player/objectbox.g.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 

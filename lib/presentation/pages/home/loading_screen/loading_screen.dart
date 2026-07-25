@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viola/presentation/pages/on_boarding/on_boarding_screen.dart';
+import 'package:norm_player/presentation/pages/on_boarding/on_boarding_screen.dart';
 
 import 'package:page_transition/page_transition.dart';
 import 'package:permission_handler/permission_handler.dart';

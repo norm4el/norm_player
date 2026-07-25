@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:viola/utils/dynamic_sizes/dynamic_sizes.dart';
+import 'package:norm_player/utils/dynamic_sizes/dynamic_sizes.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ContactUsPage extends StatelessWidget {
@@ -19,7 +19,7 @@ class ContactUsPage extends StatelessWidget {
               weight: 200,
             )),
         title: Text(
-          'viola',
+          'norm_player',
           textAlign: TextAlign.center,
           style: GoogleFonts.pacifico(fontSize: 35, color: Colors.black),
         ),

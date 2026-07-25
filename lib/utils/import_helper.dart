@@ -3,7 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:viola/presentation/providers/music/get_all_music.dart';
+import 'package:norm_player/presentation/providers/music/get_all_music.dart';
 
 class ImportHelper {
   static Future<void> importAudioFiles(BuildContext context, WidgetRef ref) async {
@@ -16,16 +16,16 @@ class ImportHelper {
 
       if (result != null && result.files.isNotEmpty) {
         final appDir = await getApplicationDocumentsDirectory();
-        final violaDir = Directory('${appDir.path}/ViolaMusic');
-        if (!await violaDir.exists()) {
-          await violaDir.create(recursive: true);
+        final norm_playerDir = Directory('${appDir.path}/NormMusic');
+        if (!await norm_playerDir.exists()) {
+          await norm_playerDir.create(recursive: true);
         }
 
         int count = 0;
         for (final file in result.files) {
           if (file.path != null) {
             final sourceFile = File(file.path!);
-            final targetPath = '${violaDir.path}/${file.name}';
+            final targetPath = '${norm_playerDir.path}/${file.name}';
             await sourceFile.copy(targetPath);
             count++;
           }
@@ -60,11 +60,11 @@ class ImportHelper {
   static Future<List<File>> getLocalAudioFiles() async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
-      final violaDir = Directory('${appDir.path}/ViolaMusic');
-      if (!await violaDir.exists()) {
+      final norm_playerDir = Directory('${appDir.path}/NormMusic');
+      if (!await norm_playerDir.exists()) {
         return [];
       }
-      final files = violaDir.listSync();
+      final files = norm_playerDir.listSync();
       return files
           .whereType<File>()
           .where((file) {

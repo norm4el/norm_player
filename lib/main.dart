@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viola/data/data_source/object_box.dart/object_box_impl.dart';
+import 'package:norm_player/data/data_source/object_box.dart/object_box_impl.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:viola/data/data_source/shared_preferences/shared_perf.dart';
+import 'package:norm_player/data/data_source/shared_preferences/shared_perf.dart';
 import 'presentation/pages/on_boarding/loading_screen/loading_screen.dart';
-import 'package:viola/utils/theme/app_theme.dart';
+import 'package:norm_player/utils/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

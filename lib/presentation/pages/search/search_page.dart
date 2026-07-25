@@ -1,130 +1,185 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:viola/presentation/providers/search_provider/search.dart';
-import 'package:viola/presentation/widgets/home_widgets/play_list_tile_widget.dart';
-import 'package:viola/utils/theme/app_theme.dart';
-import 'package:on_audio_query/on_audio_query.dart';
+import 'package:norm_player/presentation/providers/music/get_all_music.dart';
+import 'package:norm_player/presentation/providers/search_provider/search.dart';
+import 'package:norm_player/presentation/widgets/home_widgets/play_list_tile_widget.dart';
+import 'package:norm_player/utils/theme/app_theme.dart';
 
-class SearchPage extends ConsumerWidget {
-  SearchPage({super.key, required this.scrollController});
+class SearchPage extends ConsumerStatefulWidget {
+  const SearchPage({super.key, required this.scrollController});
 
   final ScrollController scrollController;
+
+  @override
+  ConsumerState<SearchPage> createState() => _SearchPageState();
+}
+
+class _SearchPageState extends ConsumerState<SearchPage> {
   final TextEditingController textEditingController = TextEditingController();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    textEditingController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allMusic = ref.watch(getAllMusicProvider).value ?? [];
+    final searchResults = ref.watch(searchProvider);
+    final isSearching = textEditingController.text.isNotEmpty;
+    final displayList = isSearching ? searchResults : allMusic;
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: AppTheme.backgroundDark,
-        elevation: 0,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.borderColor),
-              ),
-              child: const Icon(Icons.search, color: AppTheme.accentCyan, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Поиск в библиотеке',
-              style: GoogleFonts.outfit(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: textEditingController,
-              style: const TextStyle(color: Colors.white),
-              onChanged: (value) {
-                ref.read(searchProvider.notifier).searchSongs(search: value);
-              },
-              decoration: InputDecoration(
-                hintText: 'Искать локальные треки и плейлисты...',
-                hintStyle: TextStyle(color: Colors.grey[500]),
-                fillColor: AppTheme.surfaceDark,
-                filled: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25.0),
-                  borderSide: const BorderSide(color: AppTheme.borderColor),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25.0),
-                  borderSide: const BorderSide(color: AppTheme.borderColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25.0),
-                  borderSide: const BorderSide(color: AppTheme.accentCyan),
-                ),
-                prefixIcon: const Icon(Icons.search, color: AppTheme.accentCyan),
-                suffixIcon: IconButton(
-                  icon: textEditingController.text.isEmpty
-                      ? const Icon(Icons.mic, color: Colors.grey)
-                      : const Icon(Icons.close, color: Colors.grey),
-                  onPressed: () {
-                    textEditingController.clear();
-                    ref.invalidate(searchProvider);
-                  },
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: ref.watch(searchProvider).isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: CustomScrollView(
+          controller: widget.scrollController,
+          slivers: [
+            // Шапка в стиле Screen 2 "Библиотека"
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.manage_search_rounded, size: 80, color: Colors.grey[700]),
-                        const SizedBox(height: 16),
                         Text(
-                          'Начните вводить название песни из\nвашей офлайн библиотеки',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 16),
+                          'Библиотека',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${allMusic.length} трека',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.textSecondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: ref.watch(searchProvider).length,
-                    controller: scrollController,
-                    padding: const EdgeInsets.only(bottom: 110, left: 12, right: 12),
-                    itemBuilder: (context, index) {
-                      final List<SongModel> result = ref.watch(searchProvider);
-                      return Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: AppTheme.glassDecoration(radius: 16),
-                        child: PlayListTile(
-                          title: result[index].title,
-                          artist: result[index].artist ?? 'unknown',
-                          data: result[index].data,
-                          index: index,
-                          isPlayingFromSearch: true,
-                          listOfDatas: result.map((e) => e.data).toList(),
-                        ),
-                      );
-                    },
+                    IconButton(
+                      icon: const Icon(Icons.more_horiz, color: Colors.white, size: 28),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Поисковая строка в стиле референса (тёмный фон, иконка лупы справа)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+                child: TextField(
+                  controller: textEditingController,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
+                  onChanged: (value) {
+                    ref.read(searchProvider.notifier).searchSongs(search: value);
+                    setState(() {});
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Поиск в библиотеке',
+                    hintStyle: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 15),
+                    fillColor: AppTheme.surfaceDark,
+                    filled: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5), width: 1),
+                    ),
+                    suffixIcon: textEditingController.text.isEmpty
+                        ? const Icon(Icons.search, color: AppTheme.textSecondary)
+                        : IconButton(
+                            icon: const Icon(Icons.close, color: AppTheme.textSecondary),
+                            onPressed: () {
+                              textEditingController.clear();
+                              ref.invalidate(searchProvider);
+                              setState(() {});
+                            },
+                          ),
                   ),
-          )
-        ],
+                ),
+              ),
+            ),
+            // Заголовок "Недавно добавленные"
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Text(
+                  isSearching ? 'Результаты поиска' : 'Недавно добавленные',
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            // Список треков
+            displayList.isEmpty
+                ? SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isSearching ? Icons.search_off_rounded : Icons.library_music_outlined,
+                              size: 64,
+                              color: AppTheme.textSecondary.withOpacity(0.5),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              isSearching ? 'Ничего не найдено' : 'Ваша библиотека пуста',
+                              style: GoogleFonts.outfit(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      childCount: displayList.length,
+                      (context, index) {
+                        final item = displayList[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          child: PlayListTile(
+                            isPlayingFromFav: false,
+                            isPlayingFromSearch: isSearching,
+                            artist: item.artist ?? 'Unknown Artist',
+                            data: item.data,
+                            title: item.title,
+                            index: index,
+                            listOfDatas: displayList.map((e) => e.data.toString()).toList(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
+        ),
       ),
     );
   }
 }
-

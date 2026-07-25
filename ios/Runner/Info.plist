@@ -46,9 +46,9 @@
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>NSAppleMusicUsageDescription</key>
-		<string>Viola требует доступ к вашей медиатеке для поиска и воспроизведения локальной музыки.</string>
+		<string>Norm Player требует доступ к вашей медиатеке для поиска и воспроизведения локальной музыки.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>Viola использует доступ для сканирования аудиофайлов и обложек.</string>
+		<string>Norm Player использует доступ для сканирования аудиофайлов и обложек.</string>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>audio</string>

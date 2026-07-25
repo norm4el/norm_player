@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:viola/presentation/providers/current_playing/music_player_provider.dart';
-import 'package:viola/utils/dynamic_sizes/dynamic_sizes.dart';
+import 'package:norm_player/presentation/providers/current_playing/music_player_provider.dart';
+import 'package:norm_player/utils/dynamic_sizes/dynamic_sizes.dart';
+import 'package:norm_player/utils/theme/app_theme.dart';
 
 // stream builder for progress bar
 class ProgressIndicatingWidget extends ConsumerWidget {
@@ -34,12 +35,19 @@ class ProgressIndicatingWidget extends ConsumerWidget {
                 // seek to position when manuly changes
                 ref.read(musicPlayerProvider).seek(duration);
               },
-              baseBarColor: Colors.grey,
-              thumbColor: Colors.white,
-              progressBarColor: Colors.white,
-              timeLabelTextStyle: GoogleFonts.roboto(color: Colors.white),
+              baseBarColor: Colors.white.withOpacity(0.15),
+              thumbColor: AppTheme.primaryColor,
+              progressBarColor: AppTheme.primaryColor,
+              barHeight: 3.0,
+              thumbRadius: 6.0,
+              timeLabelTextStyle: GoogleFonts.inter(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             );
           }),
     );
   }
 }
+

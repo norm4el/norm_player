@@ -1,6 +1,6 @@
 import 'dart:developer';
 import 'package:on_audio_query/on_audio_query.dart';
-import 'package:viola/utils/import_helper.dart';
+import 'package:norm_player/utils/import_helper.dart';
 
 // get all audio files from local storage and imported/downloaded folder
 
@@ -32,7 +32,7 @@ class FetchAudioFiles {
             '_data': file.path,
             '_display_name': filename,
             'title': title,
-            'artist': 'Viola Offline',
+            'artist': 'Norm Player Offline',
             'album': 'Imported Music',
             'duration': 0,
             'is_music': 1,

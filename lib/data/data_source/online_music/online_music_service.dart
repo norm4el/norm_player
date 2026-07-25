@@ -78,10 +78,10 @@ class OnlineMusicService {
   static Future<void> _checkDownloadedStatus(List<OnlineSong> songs) async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
-      final violaDir = Directory('${appDir.path}/ViolaMusic');
-      if (!await violaDir.exists()) return;
+      final norm_playerDir = Directory('${appDir.path}/NormMusic');
+      if (!await norm_playerDir.exists()) return;
 
-      final files = violaDir.listSync();
+      final files = norm_playerDir.listSync();
       final fileNames = files.map((f) => f.path.split('/').last.split('\\').last.toLowerCase()).toSet();
 
       for (var song in songs) {
@@ -108,9 +108,9 @@ class OnlineMusicService {
 
     try {
       final appDir = await getApplicationDocumentsDirectory();
-      final violaDir = Directory('${appDir.path}/ViolaMusic');
-      if (!await violaDir.exists()) {
-        await violaDir.create(recursive: true);
+      final norm_playerDir = Directory('${appDir.path}/NormMusic');
+      if (!await norm_playerDir.exists()) {
+        await norm_playerDir.create(recursive: true);
       }
 
       // Определяем расширение из ссылки или по умолчанию .m4a/.mp3
@@ -118,7 +118,7 @@ class OnlineMusicService {
       if (song.downloadUrl.endsWith('.mp3')) ext = '.mp3';
 
       final fileName = '${_sanitizeFilename(song.title)} - ${_sanitizeFilename(song.artist)}$ext';
-      final savePath = '${violaDir.path}/$fileName';
+      final savePath = '${norm_playerDir.path}/$fileName';
 
       final dio = Dio();
       await dio.download(
