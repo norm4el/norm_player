@@ -1,4 +1,4 @@
-import 'dart:developer';
+import 'dart:developer' as dev;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -283,7 +283,7 @@ class HomePage extends ConsumerWidget {
               );
             },
             error: (error, stackTrace) {
-              log(error.toString());
+              dev.log(error.toString());
               return Center(
                 child: Text('Ошибка загрузки медиатеки', style: GoogleFonts.inter(color: Colors.white)),
               );

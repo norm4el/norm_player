@@ -94,7 +94,7 @@ class _NeonWaveformWidgetState extends ConsumerState<NeonWaveformWidget> with Si
                       boxShadow: isPlaying
                           ? [
                               BoxShadow(
-                                color: AppTheme.primaryColor.withValues(alpha: 0.6),
+                                color: AppTheme.primaryColor.withOpacity(0.6),
                                 blurRadius: 16,
                                 spreadRadius: 4,
                               ),
@@ -136,7 +136,7 @@ class _NeonWaveformWidgetState extends ConsumerState<NeonWaveformWidget> with Si
                     boxShadow: isPlaying
                         ? [
                             BoxShadow(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                              color: AppTheme.primaryColor.withOpacity(0.5),
                               blurRadius: 6,
                               spreadRadius: 1,
                             ),
