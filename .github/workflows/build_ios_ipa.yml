@@ -1,0 +1,82 @@
+name: Build iOS IPA for Diawi & App Store
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # Позволяет запускать сборку вручную из интерфейса GitHub
+
+jobs:
+  build_ios:
+    name: Build Flutter iOS App (.ipa)
+    runs-on: macos-14 # Используем современный macOS Apple Silicon чип для быстрой сборки
+
+    defaults:
+      run:
+        working-directory: ./Viola_music_app
+
+    steps:
+      - name: 📥 Клонирование репозитория
+        uses: actions/checkout@v4
+
+      - name: 🛠 Настройка Flutter окружения
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Установка зависимостей проекта
+        run: flutter pub get
+
+      - name: 🎨 Генерация иконок и заставки
+        run: |
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
+
+      - name: 🍏 Сборка релизного iOS приложения (Runner.app)
+        # Собираем приложение без принудительной подписи Xcode, чтобы гарантированно создать чистый билд
+        run: flutter build ios --release --no-codesign
+
+      - name: 🗜 Упаковка Runner.app в архив формата .ipa (Payload)
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          mv Runner.app Payload/
+          zip -r -9 NormPlayer_iOS.ipa Payload
+          echo "IPA файл успешно собран: build/ios/iphoneos/NormPlayer_iOS.ipa"
+
+      - name: 📤 Сохранение готового .ipa как артефакт GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: NormPlayer-iOS-IPA
+          path: Viola_music_app/build/ios/iphoneos/NormPlayer_iOS.ipa
+          retention-days: 14
+
+      # =========================================================================
+      # 💡 ОПЦИОНАЛЬНО: Автоматическая подпись для Diawi через GitHub Secrets
+      # Если ты хочешь, чтобы GitHub сам подписывал IPA твоим Apple Developer сертификатом,
+      # раскомментируй блок ниже и добавь в Settings -> Secrets своего GitHub репозитория:
+      # P12_BASE64, P12_PASSWORD и PROVISION_BASE64.
+      # =========================================================================
+      # - name: 🔐 Импорт сертификата разработчика и подпись приложения
+      #   env:
+      #     P12_BASE64: ${{ secrets.P12_BASE64 }}
+      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      #     PROVISION_BASE64: ${{ secrets.PROVISION_BASE64 }}
+      #   run: |
+      #     # Создаем временную связку ключей (keychain)
+      #     KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+      #     KEYCHAIN_PASSWORD=temporarypassword
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      #     security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      #     # Импортируем P12 сертификат
+      #     echo "$P12_BASE64" | base64 --decode > certificate.p12
+      #     security import certificate.p12 -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+      #     security list-keychain -d user -s "$KEYCHAIN_PATH"
+      #     # Устанавливаем provisioning profile
+      #     mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+      #     echo "$PROVISION_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+      #     # Пересобираем и подписываем с профилем
+      #     flutter build ipa --release --export-options-plist=ios/exportOptions.plist

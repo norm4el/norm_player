@@ -1,0 +1,74 @@
+name: viola
+description: "Norm Player — Premium Offline & Cloud Music Player."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_fonts: ^6.1.0
+  lottie: ^3.1.0
+  page_transition: ^2.1.0
+  on_audio_query: ^2.9.0
+  permission_handler: ^11.0.1
+  shared_preferences: ^2.2.2
+  flutter_riverpod: ^2.4.10
+  riverpod_annotation: ^2.3.4
+  objectbox: ^2.5.0
+  objectbox_flutter_libs: ^2.5.0
+  path: ^1.9.0
+  path_provider: ^2.1.2
+  scroll_to_hide: ^2.1.0
+  flutter_floating_bottom_bar: ^1.2.0
+  just_audio: ^0.9.36
+  audio_video_progress_bar: ^2.0.2
+  just_audio_background: ^0.0.1-beta.11
+  url_launcher: ^6.2.5
+  http: ^1.2.0
+  dio: ^5.4.0
+  file_picker: ^8.0.0
+ 
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  riverpod_generator: ^2.3.11
+  build_runner: ^2.4.8
+  custom_lint: ^0.6.2
+  riverpod_lint: ^2.3.9
+  objectbox_generator: ^2.5.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+
+dependency_overrides:
+  archive: ^3.6.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/images/viola_logo.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#0B0B14"
+  image: "assets/images/viola_logo.png"
+  android_12:
+    image: "assets/images/viola_logo.png"
+    color: "#0B0B14"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/animations/
+    - assets/images/
+
+  fonts:  
+    - family: Pacifico
+      fonts:
+        - asset: assets/fonts/Pacifico-Regular.ttf
