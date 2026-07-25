@@ -21,5 +21,5 @@ class CheckIsFav {
 
 @riverpod
 bool isFav(IsFavRef ref, {required String data}) {
-  return CheckIsFav().isFav(data: data, listOfmusic: ref.read(musicDbProvider));
+  return CheckIsFav().isFav(data: data, listOfmusic: ref.watch(musicDbProvider));
 }

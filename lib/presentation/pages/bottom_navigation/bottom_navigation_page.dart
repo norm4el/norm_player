@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:norm_player/presentation/pages/favorite/favorites_page.dart';
 import 'package:norm_player/presentation/pages/home/home_page.dart';
+import 'package:norm_player/presentation/pages/playlists/playlists_page.dart';
 import 'package:norm_player/presentation/pages/search/search_page.dart';
 import 'package:norm_player/presentation/pages/online_search/online_search_page.dart';
 import 'package:norm_player/utils/theme/app_theme.dart';
@@ -22,6 +23,7 @@ class _MusicBottomSheetState extends State<MusicBottomSheet> {
       HomePage(scrollController: _scrollController),
       SearchPage(scrollController: _scrollController),
       OnlineSearchPage(scrollController: _scrollController),
+      PlaylistsPage(controller: _scrollController),
       FavoritePage(controller: _scrollController),
     ];
 
@@ -37,14 +39,15 @@ class _MusicBottomSheetState extends State<MusicBottomSheet> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNavItem(0, Icons.home_filled, Icons.home_outlined),
                 _buildNavItem(1, Icons.search_rounded, Icons.search),
                 _buildNavItem(2, Icons.cloud_download_rounded, Icons.cloud_download_outlined),
-                _buildNavItem(3, Icons.favorite, Icons.favorite_border),
+                _buildNavItem(3, Icons.queue_music_rounded, Icons.queue_music_outlined),
+                _buildNavItem(4, Icons.favorite, Icons.favorite_border),
               ],
             ),
           ),
