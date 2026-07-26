@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dio/dio.dart';
@@ -8,10 +9,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_windows/webview_windows.dart' as win_web;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
-import 'package:norm_player/presentation/providers/music/get_all_music.dart';
-import 'package:norm_player/utils/theme/app_theme.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../theme/app_theme.dart';
 import '../../providers/playlists/local_playlists_provider.dart';
 
 class OnlineSearchPage extends ConsumerStatefulWidget {
@@ -37,11 +37,6 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
   bool _isWinWebViewInitialized = false;
   String? detectedAudioUrl;
   String? detectedAudioTitle;
-
-  // Search Mode: 0 = Native (YouTube), 1 = Web Browser (Google/WebView)
-  int searchMode = 0;
-  bool isSearching = false;
-  List<yt.Video> searchResults = [];
 
   final yt.YoutubeExplode _ytExplode = yt.YoutubeExplode();
 
@@ -83,7 +78,6 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                 detectedAudioUrl = null;
                 detectedAudioTitle = null;
               });
-              _checkYoutubeUrl(url);
             },
             onPageFinished: (String url) {
               setState(() {
@@ -101,7 +95,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                 return NavigationDecision.prevent;
               }
               if (request.url.contains('youtube.com/watch') || request.url.contains('youtu.be/')) {
-                 _checkYoutubeUrl(request.url);
+                 _showYoutubeActionSheet(request.url);
                  return NavigationDecision.prevent;
               }
               return NavigationDecision.navigate;
@@ -121,11 +115,12 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
             detectedAudioUrl = null;
             detectedAudioTitle = null;
           });
-          _checkYoutubeUrl(url);
+          if (url.contains('youtube.com/watch') || url.contains('youtu.be/')) {
+            _showYoutubeActionSheet(url);
+          }
         }
       });
       
-      // We will listen for JS messages
       _winWebViewController.webMessage.listen((msg) {
         if (mounted && msg is String) {
           setState(() {
@@ -139,22 +134,50 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
         _isWinWebViewInitialized = true;
       });
     } catch (e) {
-      debugPrint('Windows WebView error: $e');
+      debugPrint('Windows WebView error: \$e');
     }
   }
 
-  Future<void> _checkYoutubeUrl(String url) async {
-    if (url.contains('youtube.com/watch') || url.contains('youtu.be/')) {
-      try {
-        var video = await _ytExplode.videos.get(url);
-        var manifest = await _ytExplode.videos.streamsClient.getManifest(video.id);
-        var audioStream = manifest.audioOnly.withHighestBitrate();
-        setState(() {
-          detectedAudioUrl = audioStream.url.toString();
-          detectedAudioTitle = video.title;
-        });
-      } catch (e) {
-        debugPrint('YouTube Extract Error: $e');
+  Future<void> _showYoutubeActionSheet(String url) async {
+    try {
+      var video = await _ytExplode.videos.get(url);
+      
+      if (!mounted) return;
+      showCupertinoModalPopup(
+        context: context,
+        builder: (BuildContext context) => CupertinoActionSheet(
+          title: Text(video.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          message: Text(video.author),
+          actions: <CupertinoActionSheetAction>[
+            CupertinoActionSheetAction(
+              child: const Text('Загрузить', style: TextStyle(color: AppTheme.primaryColor)),
+              onPressed: () {
+                Navigator.pop(context);
+                _downloadAudioFromYoutube(video);
+              },
+            ),
+            CupertinoActionSheetAction(
+              child: const Text('Скопировать ссылку', style: TextStyle(color: AppTheme.primaryColor)),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: url));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ссылка скопирована')));
+              },
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Отменить'),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('YouTube Action Sheet Error: \$e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка получения данных YouTube: \$e')));
       }
     }
   }
@@ -192,7 +215,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
     try {
       await _webViewController.runJavaScript(js);
     } catch (e) {
-      debugPrint('Sniffer inject error: $e');
+      debugPrint('Sniffer inject error: \$e');
     }
   }
 
@@ -228,7 +251,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
     try {
       await _winWebViewController.executeScript(js);
     } catch (e) {
-      debugPrint('Windows JS inject error: $e');
+      debugPrint('Windows JS inject error: \$e');
     }
   }
 
@@ -246,31 +269,6 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
     String finalUrl = targetUrl.trim();
     if (finalUrl.isEmpty) return;
 
-    if (searchMode == 0) {
-      // Нативный быстрый поиск
-      setState(() {
-        isSearching = true;
-        searchResults = [];
-        isBrowserOpen = false;
-      });
-      try {
-        final search = await _ytExplode.search.search(finalUrl);
-        if (mounted) {
-          setState(() {
-            searchResults = search.toList();
-            isSearching = false;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => isSearching = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка поиска: \$e')));
-        }
-      }
-      return;
-    }
-
-    // Веб-поиск
     if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
       if (finalUrl.contains('.') && !finalUrl.contains(' ')) {
         finalUrl = 'https://\$finalUrl';
@@ -292,10 +290,6 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
       }
     } else if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
       _webViewController.loadRequest(Uri.parse(finalUrl));
-    } else {
-      if (finalUrl.contains('youtube.com/watch')) {
-        _checkYoutubeUrl(finalUrl);
-      }
     }
   }
 
@@ -348,107 +342,30 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
         },
       );
 
-      ref.invalidate(getAllMusicProvider);
+      ref.read(localPlaylistsProvider.notifier).addTrackToDefaultPlaylist(
+        savePath,
+        trackTitle,
+      );
+
+      setState(() {
+        isDownloading = false;
+        currentStatus = 'Сохранено: \$trackTitle';
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Трек "\$trackTitle" скачан! 🎧'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text('Трек "\$trackTitle" успешно загружен!'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
+      setState(() {
+        isDownloading = false;
+        currentStatus = 'Ошибка: \$e';
+      });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка скачивания: \$e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isDownloading = false;
-          currentStatus = '';
-        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка скачивания: \$e')));
       }
     }
-  }
-
-  Widget _buildNativeSearch() {
-    if (isSearching) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
-    }
-    
-    if (searchResults.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_rounded, size: 80, color: AppTheme.primaryColor.withOpacity(0.5)),
-            const SizedBox(height: 16),
-            Text(
-              'Найдите любой трек...',
-              style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 18),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      controller: widget.scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: searchResults.length,
-      itemBuilder: (context, index) {
-        final video = searchResults[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceDark,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(8),
-            leading: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                video.thumbnails.mediumResUrl,
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 56, height: 56,
-                  color: Colors.grey[800],
-                  child: const Icon(Icons.music_note, color: Colors.white54),
-                ),
-              ),
-            ),
-            title: Text(
-              video.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            subtitle: Text(
-              video.author,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.download_rounded, color: AppTheme.primaryColor),
-              onPressed: () => _downloadAudioFromYoutube(video),
-            ),
-            onTap: () => _downloadAudioFromYoutube(video),
-          ),
-        );
-      },
-    );
   }
 
   Widget _buildWebView() {
@@ -456,25 +373,22 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
       if (!_isWinWebViewInitialized) {
         return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
       }
-      return Stack(
-        children: [
-          win_web.Webview(_winWebViewController),
-          if (isPageLoading)
-            const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
-        ],
-      );
+      return win_web.Webview(_winWebViewController);
     } else if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
       return Stack(
         children: [
           WebViewWidget(controller: _webViewController),
           if (isPageLoading)
-            const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
+            const Positioned(
+              top: 0, left: 0, right: 0,
+              child: LinearProgressIndicator(color: AppTheme.primaryColor, backgroundColor: Colors.transparent),
+            ),
         ],
       );
     } else {
       return Center(
         child: Text(
-          'Браузер пока не поддерживается на этой платформе.\nНо вы можете вставить ссылку с YouTube!',
+          'Браузер пока не поддерживается на этой платформе.',
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(color: AppTheme.textSecondary),
         ),
@@ -483,10 +397,21 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
   }
 
   void _goBack() {
-    if (defaultTargetPlatform == TargetPlatform.windows) {
-      _winWebViewController.goBack();
-    } else if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
-      _webViewController.goBack();
+    if (isBrowserOpen) {
+      if (defaultTargetPlatform == TargetPlatform.windows) {
+        _winWebViewController.goBack();
+      } else if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
+        _webViewController.canGoBack().then((value) {
+          if (value) {
+            _webViewController.goBack();
+          } else {
+            setState(() {
+              isBrowserOpen = false;
+              urlController.clear();
+            });
+          }
+        });
+      }
     }
   }
 
@@ -506,6 +431,62 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
     }
   }
 
+  Widget _buildBookmarksGrid() {
+    final bookmarks = [
+      {'title': 'YouTube', 'url': 'https://m.youtube.com', 'icon': Icons.play_circle_filled, 'color': Colors.red},
+      {'title': 'VK', 'url': 'https://m.vk.com/audio', 'icon': Icons.music_note, 'color': Colors.blue},
+      {'title': 'Zaycev', 'url': 'https://zaycev.net', 'icon': Icons.download, 'color': Colors.amber},
+      {'title': 'SoundCloud', 'url': 'https://m.soundcloud.com', 'icon': Icons.cloud, 'color': Colors.orange},
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Закладки', style: GoogleFonts.inter(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              childAspectRatio: 0.8,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: bookmarks.length,
+            itemBuilder: (context, index) {
+              final b = bookmarks[index];
+              return GestureDetector(
+                onTap: () => _navigateToUrl(b['url'] as String),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(b['icon'] as IconData, color: b['color'] as Color, size: 36),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      b['title'] as String,
+                      style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -514,38 +495,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SizedBox(
-                width: double.infinity,
-                child: CupertinoSlidingSegmentedControl<int>(
-                  backgroundColor: AppTheme.surfaceDark,
-                  thumbColor: AppTheme.primaryColor.withOpacity(0.8),
-                  groupValue: searchMode,
-                  children: {
-                    0: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Text('Быстрый поиск', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13)),
-                    ),
-                    1: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Text('Браузер (Сниффер)', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13)),
-                    ),
-                  },
-                  onValueChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                         searchMode = val;
-                         if (searchMode == 0) {
-                            urlController.clear();
-                         }
-                      });
-                    }
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Container(
                 decoration: BoxDecoration(
                   color: AppTheme.surfaceDark,
@@ -557,7 +507,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                   style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
                   onSubmitted: _navigateToUrl,
                   decoration: InputDecoration(
-                    hintText: searchMode == 0 ? 'Название трека или артиста...' : 'Ссылка или веб-поиск...',
+                    hintText: 'Веб-поиск или имя сайта',
                     hintStyle: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 15),
                     prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textSecondary, size: 20),
                     suffixIcon: IconButton(
@@ -571,7 +521,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
               ),
             ),
             
-            if (detectedAudioUrl != null)
+            if (detectedAudioUrl != null && isBrowserOpen)
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -630,23 +580,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
               ),
 
             Expanded(
-              child: searchMode == 0
-                  ? _buildNativeSearch()
-                  : (isBrowserOpen
-                      ? _buildWebView()
-                      : Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.travel_explore_rounded, size: 80, color: AppTheme.primaryColor.withOpacity(0.5)),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Вставьте ссылку на скачивание (mp3)',
-                                style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 18),
-                              ),
-                            ],
-                          ),
-                        )),
+              child: isBrowserOpen ? _buildWebView() : _buildBookmarksGrid(),
             ),
             
             if (isBrowserOpen)
@@ -666,6 +600,15 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                     IconButton(
                       icon: const Icon(Icons.arrow_forward_ios_rounded, color: AppTheme.textSecondary, size: 20),
                       onPressed: _goForward,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.share_rounded, color: AppTheme.textSecondary, size: 20),
+                      onPressed: () {
+                         if (urlController.text.isNotEmpty) {
+                            Clipboard.setData(ClipboardData(text: urlController.text));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ссылка скопирована')));
+                         }
+                      },
                     ),
                     IconButton(
                       icon: const Icon(Icons.refresh_rounded, color: AppTheme.textSecondary, size: 20),
