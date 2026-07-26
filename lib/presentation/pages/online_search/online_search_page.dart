@@ -342,11 +342,6 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
         },
       );
 
-      ref.read(localPlaylistsProvider.notifier).addTrackToDefaultPlaylist(
-        savePath,
-        trackTitle,
-      );
-
       setState(() {
         isDownloading = false;
         currentStatus = 'Сохранено: \$trackTitle';
