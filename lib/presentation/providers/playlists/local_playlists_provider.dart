@@ -52,15 +52,8 @@ class LocalPlaylistsNotifier extends StateNotifier<List<LocalPlaylist>> {
         final List decoded = jsonDecode(rawJson);
         state = decoded.map((item) => LocalPlaylist.fromJson(item)).toList();
       } else {
-        // Дефолтный плейлист при первом старте
-        state = [
-          LocalPlaylist(
-            id: 'favorite_mix',
-            name: 'Любимый микс ⚡',
-            songPaths: [],
-            createdAt: DateTime.now(),
-          )
-        ];
+        // Удаляем дефолтные плейлисты, просто возвращаем пустой список
+        state = [];
         _savePlaylists();
       }
     } catch (_) {

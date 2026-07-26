@@ -54,6 +54,17 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
     if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
       _webViewController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..addJavaScriptChannel(
+          'SnifferChannel',
+          onMessageReceived: (JavaScriptMessage message) {
+            if (mounted) {
+              setState(() {
+                detectedAudioUrl = message.message;
+                detectedAudioTitle = 'Audio_Track_\${DateTime.now().second}';
+              });
+            }
+          },
+        )
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageStarted: (String url) {
@@ -132,31 +143,34 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
   Future<void> _injectAudioSnifferMobile() async {
     final js = '''
       (function() {
-        var audios = document.getElementsByTagName('audio');
-        if(audios.length > 0 && audios[0].src) {
-          SnifferChannel.postMessage(audios[0].src);
-          return;
-        }
-        var links = document.getElementsByTagName('a');
-        for(var i=0; i<links.length; i++) {
-          if(links[i].href.endsWith('.mp3')) {
-            SnifferChannel.postMessage(links[i].href);
-            return;
+        function checkAudio() {
+          var audios = document.getElementsByTagName('audio');
+          if(audios.length > 0 && audios[0].src) {
+            SnifferChannel.postMessage(audios[0].src);
+            return true;
           }
+          var links = document.getElementsByTagName('a');
+          for(var i=0; i<links.length; i++) {
+            if(links[i].href && links[i].href.endsWith('.mp3')) {
+              SnifferChannel.postMessage(links[i].href);
+              return true;
+            }
+          }
+          return false;
+        }
+        
+        if (!checkAudio()) {
+          var observer = new MutationObserver(function(mutations) {
+            if (checkAudio()) {
+              observer.disconnect();
+            }
+          });
+          observer.observe(document.body, { childList: true, subtree: true, attributes: true });
         }
       })();
     ''';
     
     try {
-      await _webViewController.addJavaScriptChannel(
-        'SnifferChannel',
-        onMessageReceived: (JavaScriptMessage message) {
-          setState(() {
-            detectedAudioUrl = message.message;
-            detectedAudioTitle = 'Audio_Track_\${DateTime.now().second}';
-          });
-        },
-      );
       await _webViewController.runJavaScript(js);
     } catch (e) {
       debugPrint('Sniffer inject error: $e');
@@ -166,17 +180,29 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
   Future<void> _injectAudioSnifferWindows() async {
     final js = '''
       (function() {
-        var audios = document.getElementsByTagName('audio');
-        if(audios.length > 0 && audios[0].src) {
-          window.chrome.webview.postMessage(audios[0].src);
-          return;
-        }
-        var links = document.getElementsByTagName('a');
-        for(var i=0; i<links.length; i++) {
-          if(links[i].href.endsWith('.mp3')) {
-            window.chrome.webview.postMessage(links[i].href);
-            return;
+        function checkAudio() {
+          var audios = document.getElementsByTagName('audio');
+          if(audios.length > 0 && audios[0].src) {
+            window.chrome.webview.postMessage(audios[0].src);
+            return true;
           }
+          var links = document.getElementsByTagName('a');
+          for(var i=0; i<links.length; i++) {
+            if(links[i].href && links[i].href.endsWith('.mp3')) {
+              window.chrome.webview.postMessage(links[i].href);
+              return true;
+            }
+          }
+          return false;
+        }
+        
+        if (!checkAudio()) {
+          var observer = new MutationObserver(function(mutations) {
+            if (checkAudio()) {
+              observer.disconnect();
+            }
+          });
+          observer.observe(document.body, { childList: true, subtree: true, attributes: true });
         }
       })();
     ''';

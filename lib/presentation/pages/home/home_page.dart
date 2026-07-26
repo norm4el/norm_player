@@ -159,15 +159,7 @@ class HomePage extends ConsumerWidget {
                         onTap: () {
                           final allSongs = data;
                           if (allSongs.isNotEmpty) {
-                            final seed = allSongs[Random().nextInt(allSongs.length)];
-                            ref.read(smartWaveProvider).startSmartWave(seed);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('⚡ Умная Волна запущен: микс на основе ${seed.artist}!'),
-                                backgroundColor: AppTheme.primaryColor,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
+                            _showSmartWaveSetupModal(context, ref, allSongs);
                           }
                         },
                         child: Container(
@@ -366,6 +358,83 @@ class HomePage extends ConsumerWidget {
               child: CircularProgressIndicator(color: AppTheme.primaryColor),
             ),
           ),
+    );
+  }
+
+  void _showSmartWaveSetupModal(BuildContext context, WidgetRef ref, List<dynamic> allSongs) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.backgroundDark,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.bolt, color: Colors.amber, size: 28),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Настройка Умной Волны',
+                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.2), shape: BoxShape.circle),
+                    child: const Icon(Icons.music_note, color: AppTheme.primaryColor),
+                  ),
+                  title: Text('Случайный трек (Мне повезет)', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Волна начнется с абсолютно случайного трека', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    final seed = allSongs[Random().nextInt(allSongs.length)];
+                    ref.read(smartWaveProvider).startSmartWave(seed);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('⚡ Умная Волна запущен: микс на основе \${seed.artist}!'),
+                        backgroundColor: AppTheme.primaryColor,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: AppTheme.accentPink.withOpacity(0.2), shape: BoxShape.circle),
+                    child: const Icon(Icons.queue_music, color: AppTheme.accentPink),
+                  ),
+                  title: Text('Запустить по всем трекам', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Бесконечный микс из всей вашей медиатеки', style: GoogleFonts.inter(color: Colors.white70, fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    final seed = allSongs[Random().nextInt(allSongs.length)];
+                    ref.read(smartWaveProvider).startSmartWave(seed); // Since SmartWave dynamically fetches, starting with one seed triggers the mix
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('⚡ Умная Волна: глобальный микс запущен!'),
+                        backgroundColor: AppTheme.accentPink,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
