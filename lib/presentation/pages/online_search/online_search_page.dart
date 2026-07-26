@@ -54,6 +54,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
     if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
       _webViewController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
         ..addJavaScriptChannel(
           'SnifferChannel',
           onMessageReceived: (JavaScriptMessage message) {
@@ -86,6 +87,16 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
               setState(() {
                 isPageLoading = false;
               });
+            },
+            onNavigationRequest: (NavigationRequest request) {
+              if (!request.url.startsWith('http://') && !request.url.startsWith('https://')) {
+                return NavigationDecision.prevent;
+              }
+              if (request.url.contains('youtube.com/watch') || request.url.contains('youtu.be/')) {
+                 _checkYoutubeUrl(request.url);
+                 return NavigationDecision.prevent;
+              }
+              return NavigationDecision.navigate;
             },
           ),
         );
@@ -231,7 +242,7 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
       if (finalUrl.contains('.') && !finalUrl.contains(' ')) {
         finalUrl = 'https://$finalUrl';
       } else {
-        finalUrl = 'https://www.google.com/search?q=\${Uri.encodeComponent("\$finalUrl скачать mp3")}';
+        finalUrl = 'https://www.google.com/search?q=${Uri.encodeComponent("\$finalUrl скачать mp3")}';
       }
     }
 
@@ -257,6 +268,13 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
   }
 
   Future<void> _downloadAudio(String audioUrl, String trackTitle) async {
+    if (audioUrl.startsWith('blob:')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('К сожалению, защищенные (blob) треки скачать нельзя. Попробуйте найти прямую ссылку или YouTube!'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
     setState(() {
       isDownloading = true;
       downloadProgress = 0.0;

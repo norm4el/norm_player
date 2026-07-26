@@ -160,6 +160,14 @@ class HomePage extends ConsumerWidget {
                           final allSongs = data;
                           if (allSongs.isNotEmpty) {
                             _showSmartWaveSetupModal(context, ref, allSongs);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Для Умной Волны нужны треки! Добавьте музыку.'),
+                                backgroundColor: AppTheme.accentPink,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
                           }
                         },
                         child: Container(
