@@ -11,7 +11,7 @@ import 'package:webview_windows/webview_windows.dart' as win_web;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
 import 'package:flutter/foundation.dart';
 
-import '../../theme/app_theme.dart';
+import 'package:norm_player/utils/theme/app_theme.dart';
 import '../../providers/playlists/local_playlists_provider.dart';
 
 class OnlineSearchPage extends ConsumerStatefulWidget {
