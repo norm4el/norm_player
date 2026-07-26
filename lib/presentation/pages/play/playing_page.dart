@@ -11,6 +11,8 @@ import 'package:norm_player/presentation/providers/music/get_all_music.dart';
 import 'package:norm_player/presentation/providers/search_provider/search.dart';
 import 'package:norm_player/presentation/providers/sleep_timer/sleep_timer_provider.dart';
 import 'package:norm_player/presentation/providers/bookmarks/bookmarks_provider.dart';
+import 'package:norm_player/presentation/providers/equalizer/equalizer_provider.dart';
+import 'package:norm_player/presentation/providers/ab_loop/ab_loop_provider.dart';
 import 'package:norm_player/presentation/providers/playback_speed/playback_speed_provider.dart';
 import 'package:norm_player/presentation/providers/history/history_provider.dart';
 import 'package:norm_player/presentation/widgets/lyrics/lyrics_view_widget.dart';
@@ -50,6 +52,11 @@ class CurrentPlayingPage extends ConsumerWidget {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Эквалайзер 🎚️',
+            icon: const Icon(Icons.tune_rounded, color: AppTheme.primaryColor, size: 24),
+            onPressed: () => _showEqualizerModal(context, ref),
+          ),
           Builder(builder: (context) {
             final currentSpeed = ref.watch(playbackSpeedProvider);
             return TextButton(
@@ -85,9 +92,16 @@ class CurrentPlayingPage extends ConsumerWidget {
                       artist: artist,
                       path: songDataPath,
                     );
-                final currentPos = ref.read(musicPlayerProvider).position.inMilliseconds;
+                final currentPosDuration = ref.read(musicPlayerProvider).position;
+                final currentPos = currentPosDuration.inMilliseconds;
                 if (currentPos > 5000) {
                   ref.read(bookmarksProvider.notifier).savePosition(songDataPath, currentPos);
+                }
+                final abState = ref.read(abLoopProvider);
+                if (abState.isLooping && abState.pointA != null && abState.pointB != null) {
+                  if (currentPosDuration >= abState.pointB!) {
+                    ref.read(musicPlayerProvider).seek(abState.pointA!);
+                  }
                 }
               });
             }
@@ -304,11 +318,43 @@ class CurrentPlayingPage extends ConsumerWidget {
                           );
                         },
                       ),
+                      Builder(builder: (context) {
+                        final abLoop = ref.watch(abLoopProvider);
+                        final bool isLooping = abLoop.isLooping;
+
+                        return IconButton(
+                          tooltip: isLooping ? 'Сбросить повтор A-B' : 'Повтор отрезка A-B',
+                          icon: Icon(
+                            isLooping ? Icons.repeat_one_on_rounded : Icons.repeat_one_rounded,
+                            color: isLooping ? AppTheme.accentColor : AppTheme.textSecondary,
+                            size: 24,
+                          ),
+                          onPressed: () {
+                            final currentPos = ref.read(musicPlayerProvider).position;
+                            if (abLoop.pointA == null) {
+                              ref.read(abLoopProvider.notifier).setPointA(currentPos);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Установлена точка A 📍. Нажмите ещё раз для точки B'), duration: Duration(seconds: 2)),
+                              );
+                            } else if (abLoop.pointB == null) {
+                              ref.read(abLoopProvider.notifier).setPointB(currentPos);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Зациклен отрезок A-B 🔄!'), duration: Duration(seconds: 2)),
+                              );
+                            } else {
+                              ref.read(abLoopProvider.notifier).resetLoop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Повтор отрезка выключен'), duration: Duration(seconds: 1)),
+                              );
+                            }
+                          },
+                        );
+                      }),
                       IconButton(
                         tooltip: 'Аудио Эквалайзер',
                         icon: const Icon(Icons.tune, color: AppTheme.textSecondary, size: 24),
                         onPressed: () {
-                          _showEqualizerModal(context);
+                          _showEqualizerModal(context, ref);
                         },
                       ),
                     ],
@@ -472,29 +518,76 @@ class CurrentPlayingPage extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Аудио Эквалайзер', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 16),
-              const Text('Пресеты звучания:', style: TextStyle(color: AppTheme.textSecondary)),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: ['Сбалансированный', 'Bass Boost', 'Рок', 'Поп', 'Джаз', 'Вокал'].map((preset) {
-                  return Chip(
-                    backgroundColor: AppTheme.backgroundDark,
-                    side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
-                    label: Text(preset, style: const TextStyle(color: Colors.white)),
-                  );
-                }).toList(),
+        return Consumer(
+          builder: (context, ref, child) {
+            final eqState = ref.watch(equalizerProvider);
+            final presets = [
+              {'label': 'Обычный ⚖️', 'preset': EqualizerPreset.normal},
+              {'label': 'Bass Boost 🔊', 'preset': EqualizerPreset.bassBoost},
+              {'label': 'Rock 🎸', 'preset': EqualizerPreset.rock},
+              {'label': 'Electronic ⚡', 'preset': EqualizerPreset.electronic},
+              {'label': 'Vocal 🎤', 'preset': EqualizerPreset.vocal},
+            ];
+
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 16),
+                  Text('Аудио Эквалайзер 🎚️', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: presets.map((p) {
+                      final isSelected = eqState.preset == p['preset'];
+                      return ChoiceChip(
+                        label: Text(p['label'] as String, style: TextStyle(color: isSelected ? Colors.white : AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                        selected: isSelected,
+                        selectedColor: AppTheme.primaryColor,
+                        backgroundColor: AppTheme.backgroundDark,
+                        onSelected: (selected) {
+                          if (selected) {
+                            ref.read(equalizerProvider.notifier).setPreset(p['preset'] as EqualizerPreset);
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Text('Низкие частоты (Басс):', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      Expanded(
+                        child: Slider(
+                          value: eqState.bassGain,
+                          activeColor: AppTheme.primaryColor,
+                          inactiveColor: AppTheme.backgroundDark,
+                          onChanged: (v) => ref.read(equalizerProvider.notifier).setBass(v),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Text('Высокие частоты (Treble):', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      Expanded(
+                        child: Slider(
+                          value: eqState.trebleGain,
+                          activeColor: AppTheme.accentPink,
+                          inactiveColor: AppTheme.backgroundDark,
+                          onChanged: (v) => ref.read(equalizerProvider.notifier).setTreble(v),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            );
+          },
         );
       },
     );
