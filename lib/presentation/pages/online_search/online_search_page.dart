@@ -182,74 +182,103 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
     }
   }
 
-  Future<void> _injectAudioSnifferMobile() async {
-    final js = '''
+  String _getAdvancedSnifferJs() {
+    return '''
       (function() {
-        function checkAudio() {
+        if (window._audioSnifferInjected) return;
+        window._audioSnifferInjected = true;
+
+        var lastReportedUrl = '';
+        function reportAudio(url) {
+          if (!url || url.startsWith('blob:') || url.startsWith('data:')) return;
+          // Avoid spamming the same URL
+          if (url === lastReportedUrl) return;
+          
+          // Basic heuristic: check if it's likely an audio file or stream
+          var isAudio = url.includes('.mp3') || url.includes('.m4a') || url.includes('.wav') || url.includes('audio') || url.includes('music');
+          
+          // Report
+          lastReportedUrl = url;
+          if (window.SnifferChannel) {
+             window.SnifferChannel.postMessage(url);
+          } else if (window.chrome && window.chrome.webview) {
+             window.chrome.webview.postMessage(url);
+          }
+        }
+
+        // 1. Intercept window.Audio
+        var OriginalAudio = window.Audio;
+        window.Audio = function() {
+          var audio = new OriginalAudio();
+          audio.addEventListener('play', function() { reportAudio(audio.src); });
+          return audio;
+        };
+
+        // 2. Intercept src setter on HTMLMediaElement
+        var originalSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+        if (originalSrcDescriptor) {
+            Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+                set: function(value) {
+                    reportAudio(value);
+                    originalSrcDescriptor.set.call(this, value);
+                },
+                get: function() {
+                    return originalSrcDescriptor.get.call(this);
+                }
+            });
+        }
+
+        // 3. Scan existing DOM
+        function checkExisting() {
           var audios = document.getElementsByTagName('audio');
-          if(audios.length > 0 && audios[0].src) {
-            SnifferChannel.postMessage(audios[0].src);
-            return true;
+          for(var i=0; i<audios.length; i++) {
+            if(audios[i].src) reportAudio(audios[i].src);
+            audios[i].addEventListener('play', function(e) { reportAudio(e.target.src); });
           }
           var links = document.getElementsByTagName('a');
           for(var i=0; i<links.length; i++) {
-            if(links[i].href && links[i].href.endsWith('.mp3')) {
-              SnifferChannel.postMessage(links[i].href);
-              return true;
+            if(links[i].href && (links[i].href.endsWith('.mp3') || links[i].href.endsWith('.m4a'))) {
+              reportAudio(links[i].href);
             }
           }
-          return false;
         }
-        
-        if (!checkAudio()) {
-          var observer = new MutationObserver(function(mutations) {
-            if (checkAudio()) {
-              observer.disconnect();
-            }
-          });
-          observer.observe(document.body, { childList: true, subtree: true, attributes: true });
-        }
+        checkExisting();
+
+        // 4. Monitor DOM changes
+        var observer = new MutationObserver(function(mutations) {
+           mutations.forEach(function(mutation) {
+               mutation.addedNodes.forEach(function(node) {
+                   if (node.tagName === 'AUDIO') {
+                       if (node.src) reportAudio(node.src);
+                       node.addEventListener('play', function(e) { reportAudio(e.target.src); });
+                   } else if (node.tagName === 'A' && node.href && (node.href.endsWith('.mp3'))) {
+                       reportAudio(node.href);
+                   } else if (node.querySelectorAll) {
+                       var audios = node.querySelectorAll('audio');
+                       audios.forEach(function(a) { 
+                           if (a.src) reportAudio(a.src); 
+                           a.addEventListener('play', function(e) { reportAudio(e.target.src); });
+                       });
+                   }
+               });
+           });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
       })();
     ''';
-    
+  }
+
+  Future<void> _injectAudioSnifferMobile() async {
     try {
-      await _webViewController.runJavaScript(js);
+      await _webViewController.runJavaScript(_getAdvancedSnifferJs());
     } catch (e) {
       debugPrint('Sniffer inject error: \$e');
     }
   }
 
   Future<void> _injectAudioSnifferWindows() async {
-    final js = '''
-      (function() {
-        function checkAudio() {
-          var audios = document.getElementsByTagName('audio');
-          if(audios.length > 0 && audios[0].src) {
-            window.chrome.webview.postMessage(audios[0].src);
-            return true;
-          }
-          var links = document.getElementsByTagName('a');
-          for(var i=0; i<links.length; i++) {
-            if(links[i].href && links[i].href.endsWith('.mp3')) {
-              window.chrome.webview.postMessage(links[i].href);
-              return true;
-            }
-          }
-          return false;
-        }
-        
-        if (!checkAudio()) {
-          var observer = new MutationObserver(function(mutations) {
-            if (checkAudio()) {
-              observer.disconnect();
-            }
-          });
-          observer.observe(document.body, { childList: true, subtree: true, attributes: true });
-        }
-      })();
-    ''';
     try {
-      await _winWebViewController.executeScript(js);
+      await _winWebViewController.executeScript(_getAdvancedSnifferJs());
     } catch (e) {
       debugPrint('Windows JS inject error: \$e');
     }
