@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:norm_player/data/data_source/online_music/online_music_service.dart';
-import 'package:norm_player/presentation/providers/online_music_provider/online_music_provider.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:norm_player/presentation/providers/music/get_all_music.dart';
 import 'package:norm_player/utils/theme/app_theme.dart';
 
 class OnlineSearchPage extends ConsumerStatefulWidget {
@@ -16,49 +18,85 @@ class OnlineSearchPage extends ConsumerStatefulWidget {
 }
 
 class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
-  final TextEditingController textEditingController = TextEditingController();
+  final TextEditingController urlController = TextEditingController();
+  bool isDownloading = false;
+  double downloadProgress = 0.0;
+  String currentStatus = '';
 
-  final List<String> searchSuggestions = [
-    'Littlil',
-    'Kizaru',
-    'Miyagi',
-    'The Weeknd',
-    'Radiohead',
-    'Ed Sheeran',
-    'Taylor Swift',
-    'Phonk',
+  // Закладки точь-в-точь как на скриншоте пользователя
+  final List<Map<String, dynamic>> bookmarks = [
+    {
+      'title': 'Помощь',
+      'url': 'https://m.youtube.com',
+      'icon': Icons.play_circle_fill_rounded,
+      'color': Colors.red,
+    },
+    {
+      'title': 'ВК',
+      'url': 'https://m.vk.com/audio',
+      'icon': Icons.cloud_rounded,
+      'color': const Color(0xFF0077FF),
+    },
+    {
+      'title': 'Зайцев',
+      'url': 'https://zaycev.net',
+      'icon': Icons.pets_rounded,
+      'color': Colors.teal,
+    },
+    {
+      'title': 'Ютуб MP3',
+      'url': 'https://ytmp3.nu',
+      'icon': Icons.video_library_rounded,
+      'color': Colors.redAccent,
+    },
+    {
+      'title': 'Инстаграм',
+      'url': 'https://instagram.com',
+      'icon': Icons.camera_alt_rounded,
+      'color': Colors.purpleAccent,
+    },
+    {
+      'title': 'SoundCloud',
+      'url': 'https://m.soundcloud.com',
+      'icon': Icons.graphic_eq_rounded,
+      'color': Colors.orangeAccent,
+    },
   ];
 
   @override
   void dispose() {
-    textEditingController.dispose();
+    urlController.dispose();
     super.dispose();
   }
 
-  /// Открытие встроенного окна браузера прямо внутри приложения без перехода в сторонние программы
-  Future<void> _openInAppGoogleSearch(String query) async {
-    final String searchQuery = query.trim().isEmpty ? 'Littlil' : query.trim();
-    final Uri url = Uri.parse('https://www.google.com/search?q=${Uri.encodeComponent("$searchQuery скачать mp3")}');
+  /// Открытие встроенного веб-браузера прямо внутри приложения
+  Future<void> _navigateToUrl(String targetUrl) async {
+    String finalUrl = targetUrl.trim();
+    if (finalUrl.isEmpty) return;
+
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      if (finalUrl.contains('.') && !finalUrl.contains(' ')) {
+        finalUrl = 'https://$finalUrl';
+      } else {
+        finalUrl = 'https://www.google.com/search?q=${Uri.encodeComponent(finalUrl + " скачать mp3")}';
+      }
+    }
+
+    final Uri uri = Uri.parse(finalUrl);
 
     try {
-      // Использование LaunchMode.inAppBrowserView / inAppWebView заставляет платформу открывать окно прямо в приложении
-      bool launched = false;
-      try {
-        launched = await launchUrl(
-          url,
-          mode: LaunchMode.inAppBrowserView,
-          webViewConfiguration: const WebViewConfiguration(
-            enableJavaScript: true,
-            enableDomStorage: true,
-          ),
-        );
-      } catch (_) {
-        launched = false;
-      }
+      bool launched = await launchUrl(
+        uri,
+        mode: LaunchMode.inAppBrowserView,
+        webViewConfiguration: const WebViewConfiguration(
+          enableJavaScript: true,
+          enableDomStorage: true,
+        ),
+      );
 
       if (!launched) {
         await launchUrl(
-          url,
+          uri,
           mode: LaunchMode.inAppWebView,
           webViewConfiguration: const WebViewConfiguration(
             enableJavaScript: true,
@@ -69,301 +107,357 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ошибка открытия встроенного окна поиска'),
-            backgroundColor: AppTheme.surfaceDark,
-          ),
+          const SnackBar(content: Text('Не удалось открыть ссылку во встроенном веб-окне')),
         );
       }
     }
   }
 
+  /// Прямое скачивание аудиофайла по URL со страницы любого сайта в медиатеку приложения
+  Future<void> _downloadAudioFile(String directAudioUrl, String trackName) async {
+    setState(() {
+      isDownloading = true;
+      downloadProgress = 0.0;
+      currentStatus = 'Загрузка $trackName...';
+    });
+
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final musicFolder = Directory('${appDir.path}/NormMusic');
+      if (!await musicFolder.exists()) {
+        await musicFolder.create(recursive: true);
+      }
+
+      final sanitizedName = trackName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final savePath = '${musicFolder.path}/$sanitizedName.mp3';
+
+      final dio = Dio();
+      await dio.download(
+        directAudioUrl,
+        savePath,
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            setState(() {
+              downloadProgress = received / total;
+            });
+          }
+        },
+      );
+
+      // Обновляем список треков во всем приложении!
+      ref.invalidate(getAllMusicProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Трек "$trackName" успешно скачан и добавлен в медиатеку! 🎧'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка скачивания: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isDownloading = false;
+          currentStatus = '';
+        });
+      }
+    }
+  }
+
+  void _showDirectDownloadDialog() {
+    final linkController = TextEditingController();
+    final nameController = TextEditingController(text: 'Скачанный трек');
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppTheme.surfaceDark,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Скачать MP3 файл 🎧', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: linkController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Прямая ссылка на MP3/Аудио',
+                  labelStyle: const TextStyle(color: AppTheme.textSecondary),
+                  filled: true,
+                  fillColor: AppTheme.backgroundDark,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Название трека',
+                  labelStyle: const TextStyle(color: AppTheme.textSecondary),
+                  filled: true,
+                  fillColor: AppTheme.backgroundDark,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена', style: TextStyle(color: AppTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                if (linkController.text.trim().isNotEmpty) {
+                  Navigator.pop(context);
+                  _downloadAudioFile(linkController.text.trim(), nameController.text.trim());
+                }
+              },
+              child: const Text('Скачать', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final searchState = ref.watch(onlineSearchProvider);
-    final isSearching = textEditingController.text.isNotEmpty;
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       body: SafeArea(
-        child: CustomScrollView(
-          controller: widget.scrollController,
-          slivers: [
-            // Заголовок
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Поиск в приложения 🌐',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
+        child: Column(
+          children: [
+            // Верхняя поисковая строка в стиле iOS/Browser как на скриншоте
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceDark,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                ),
+                child: TextField(
+                  controller: urlController,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
+                  onSubmitted: (value) => _navigateToUrl(value),
+                  decoration: InputDecoration(
+                    hintText: 'Веб-поиск или имя сайта',
+                    hintStyle: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 15),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textSecondary, size: 20),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.arrow_forward_rounded, color: AppTheme.primaryColor),
+                      onPressed: () => _navigateToUrl(urlController.text),
                     ),
-                    IconButton(
-                      tooltip: 'Встроенный Google окно',
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.open_in_browser_rounded, color: AppTheme.primaryColor, size: 24),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  ),
+                ),
+              ),
+            ),
+            // Индикатор процесса скачивания при активной загрузке
+            if (isDownloading)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceDark,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.primaryColor),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '$currentStatus ${(downloadProgress * 100).toInt()}%',
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
                       ),
-                      onPressed: () => _openInAppGoogleSearch(textEditingController.text),
                     ),
                   ],
                 ),
               ),
-            ),
-            // Поисковое окно прямо в приложении
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: TextField(
-                  controller: textEditingController,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
-                  onSubmitted: (value) {
-                    ref.read(onlineSearchProvider.notifier).searchSongs(value);
-                    _openInAppGoogleSearch(value);
-                  },
-                  onChanged: (value) {
-                    if (value.length > 1) {
-                      ref.read(onlineSearchProvider.notifier).searchSongs(value);
-                    } else if (value.isEmpty) {
-                      ref.read(onlineSearchProvider.notifier).searchSongs('');
-                    }
-                    setState(() {});
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Введите название или исполнителя (например: Littlil)...',
-                    hintStyle: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 14),
-                    fillColor: AppTheme.surfaceDark,
-                    filled: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide.none,
-                    ),
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (textEditingController.text.isNotEmpty)
-                          IconButton(
-                            icon: const Icon(Icons.close, color: AppTheme.textSecondary),
-                            onPressed: () {
-                              textEditingController.clear();
-                              ref.read(onlineSearchProvider.notifier).searchSongs('');
-                              setState(() {});
-                            },
-                          ),
-                        IconButton(
-                          tooltip: 'Открыть окно поиска',
-                          icon: const Icon(Icons.search, color: AppTheme.primaryColor),
-                          onPressed: () {
-                            ref.read(onlineSearchProvider.notifier).searchSongs(textEditingController.text);
-                            _openInAppGoogleSearch(textEditingController.text);
-                          },
-                        ),
-                      ],
+            // Основной контент (Сетка "Закладки" точь-в-точь по референсу)
+            Expanded(
+              child: ListView(
+                controller: widget.scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  Text(
+                    'Закладки',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              ),
-            ),
-            // Внутренняя карточка встроенного окна Google
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceDark,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.15),
-                              shape: BoxShape.circle,
+                  const SizedBox(height: 20),
+                  // Сетка сайтов 4 колонки
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 20,
+                      childAspectRatio: 0.82,
+                    ),
+                    itemCount: bookmarks.length,
+                    itemBuilder: (context, index) {
+                      final b = bookmarks[index];
+                      return GestureDetector(
+                        onTap: () {
+                          urlController.text = b['url'];
+                          _navigateToUrl(b['url']);
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: (b['color'] as Color).withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: (b['color'] as Color).withOpacity(0.35), width: 1.5),
+                              ),
+                              child: Icon(
+                                b['icon'] as IconData,
+                                color: b['color'] as Color,
+                                size: 30,
+                              ),
                             ),
-                            child: const Icon(Icons.window_rounded, size: 24, color: AppTheme.primaryColor),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Окно онлайн-поиска Google 🌐',
-                                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Работает прямо внутри приложения в оверлейном окне.',
-                                  style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12),
-                                ),
-                              ],
+                            const SizedBox(height: 8),
+                            Text(
+                              b['title'] as String,
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          icon: const Icon(Icons.travel_explore_rounded, color: Colors.white),
-                          label: const Text(
-                            'Открыть встроенный веб-поиск 🚀',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          onPressed: () => _openInAppGoogleSearch(textEditingController.text),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Секция чипсов
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-                child: Text(
-                  'Быстрый поиск артистов:',
-                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 10,
-                  children: searchSuggestions.map((tag) {
-                    final bool isLittlil = tag.toLowerCase() == 'littlil';
-                    return ActionChip(
-                      backgroundColor: isLittlil ? AppTheme.accentPink.withOpacity(0.2) : AppTheme.surfaceDark,
-                      side: BorderSide(color: isLittlil ? AppTheme.accentPink : Colors.white.withOpacity(0.08)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      avatar: Icon(
-                        isLittlil ? Icons.star_rounded : Icons.search,
-                        size: 16,
-                        color: isLittlil ? AppTheme.accentPink : AppTheme.primaryColor,
-                      ),
-                      label: Text(
-                        tag,
-                        style: GoogleFonts.inter(
-                          color: isLittlil ? AppTheme.accentPink : Colors.white,
-                          fontWeight: isLittlil ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 14,
-                        ),
-                      ),
-                      onPressed: () {
-                        textEditingController.text = tag;
-                        ref.read(onlineSearchProvider.notifier).searchSongs(tag);
-                        _openInAppGoogleSearch(tag);
-                        setState(() {});
-                      },
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            // Результаты прямого поиска треков внутри приложения
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Text(
-                  isSearching ? 'Прямой список аудиорезультатов:' : 'Популярные аудиозаписи в сети:',
-                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ),
-            ),
-            searchState.when(
-              data: (songs) {
-                if (songs.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: Text('Нажмите «Открыть встроенный веб-поиск», чтобы найти любой файл.', style: TextStyle(color: AppTheme.textSecondary)),
-                      ),
-                    ),
-                  );
-                }
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    childCount: songs.length,
-                    (context, index) {
-                      final song = songs[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.surfaceDark,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.music_note, color: AppTheme.primaryColor),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(song.title, style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                    Text('${song.artist} • ${song.album}', style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: 'Открыть встроенное окно',
-                                icon: const Icon(Icons.search, color: AppTheme.primaryColor),
-                                onPressed: () => _openInAppGoogleSearch('${song.title} ${song.artist}'),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
                       );
                     },
                   ),
-                );
-              },
-              error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
-              loading: () => const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
-                ),
+                  const SizedBox(height: 30),
+                  // Кнопка прямой загрузки MP3 файлов
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceDark,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.download_rounded, color: AppTheme.primaryColor, size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Авто-скачивание в треки 🎧',
+                                style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Вставьте прямую ссылку для мгновенного сохранения MP3.',
+                                style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          ),
+                          onPressed: _showDirectDownloadDialog,
+                          child: const Text('Ссылка 📥', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 100),
+                ],
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            // Нижняя панель управления встроенным браузером (Назад, Вперед, Поделиться, Загрузки, Окна)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceDark,
+                border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  IconButton(
+                    tooltip: 'Назад',
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textSecondary, size: 20),
+                    onPressed: () => _navigateToUrl('https://www.google.com'),
+                  ),
+                  IconButton(
+                    tooltip: 'Вперед',
+                    icon: const Icon(Icons.arrow_forward_ios_rounded, color: AppTheme.textSecondary, size: 20),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    tooltip: 'Открыть браузер',
+                    icon: const Icon(Icons.ios_share_rounded, color: AppTheme.primaryColor, size: 22),
+                    onPressed: () => _navigateToUrl(urlController.text.isNotEmpty ? urlController.text : 'https://www.google.com'),
+                  ),
+                  IconButton(
+                    tooltip: 'Скачать MP3',
+                    icon: const Icon(Icons.downloading_rounded, color: AppTheme.accentPink, size: 24),
+                    onPressed: _showDirectDownloadDialog,
+                  ),
+                  IconButton(
+                    tooltip: 'Закладки',
+                    icon: const Icon(Icons.filter_none_rounded, color: AppTheme.textSecondary, size: 20),
+                    onPressed: () {
+                      urlController.clear();
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
