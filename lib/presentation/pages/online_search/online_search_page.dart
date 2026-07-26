@@ -190,20 +190,22 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
 
         var lastReportedUrl = '';
         function reportAudio(url) {
-          if (!url || url.startsWith('blob:') || url.startsWith('data:')) return;
-          // Avoid spamming the same URL
+          if (!url || typeof url !== 'string' || url.startsWith('blob:') || url.startsWith('data:')) return;
           if (url === lastReportedUrl) return;
           
-          // Basic heuristic: check if it's likely an audio file or stream
-          var isAudio = url.includes('.mp3') || url.includes('.m4a') || url.includes('.wav') || url.includes('audio') || url.includes('music');
+          var lowerUrl = url.toLowerCase();
+          var isAudio = lowerUrl.includes('.mp3') || lowerUrl.includes('.m4a') || lowerUrl.includes('.wav') || lowerUrl.includes('audio') || lowerUrl.includes('music') || lowerUrl.includes('track');
           
-          // Report
+          if (!isAudio) return;
+          
           lastReportedUrl = url;
-          if (window.SnifferChannel) {
-             window.SnifferChannel.postMessage(url);
-          } else if (window.chrome && window.chrome.webview) {
-             window.chrome.webview.postMessage(url);
-          }
+          try {
+            if (typeof SnifferChannel !== 'undefined') {
+               SnifferChannel.postMessage(url);
+            } else if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(url);
+            }
+          } catch(e) {}
         }
 
         // 1. Intercept window.Audio
@@ -230,12 +232,12 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
 
         // 3. Scan existing DOM
         function checkExisting() {
-          var audios = document.getElementsByTagName('audio');
+          var audios = document.querySelectorAll('audio');
           for(var i=0; i<audios.length; i++) {
             if(audios[i].src) reportAudio(audios[i].src);
             audios[i].addEventListener('play', function(e) { reportAudio(e.target.src); });
           }
-          var links = document.getElementsByTagName('a');
+          var links = document.querySelectorAll('a');
           for(var i=0; i<links.length; i++) {
             if(links[i].href && (links[i].href.endsWith('.mp3') || links[i].href.endsWith('.m4a'))) {
               reportAudio(links[i].href);
@@ -254,16 +256,21 @@ class _OnlineSearchPageState extends ConsumerState<OnlineSearchPage> {
                    } else if (node.tagName === 'A' && node.href && (node.href.endsWith('.mp3'))) {
                        reportAudio(node.href);
                    } else if (node.querySelectorAll) {
-                       var audios = node.querySelectorAll('audio');
-                       audios.forEach(function(a) { 
-                           if (a.src) reportAudio(a.src); 
-                           a.addEventListener('play', function(e) { reportAudio(e.target.src); });
-                       });
+                       try {
+                           var audios = node.querySelectorAll('audio');
+                           audios.forEach(function(a) { 
+                               if (a.src) reportAudio(a.src); 
+                               a.addEventListener('play', function(e) { reportAudio(e.target.src); });
+                           });
+                       } catch(e) {}
                    }
                });
            });
         });
         observer.observe(document.body, { childList: true, subtree: true });
+        
+        // 5. Fallback polling for dynamically attached streams
+        setInterval(checkExisting, 1500);
       })();
     ''';
   }
