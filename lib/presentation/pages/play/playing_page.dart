@@ -510,7 +510,7 @@ class CurrentPlayingPage extends ConsumerWidget {
     );
   }
 
-  void _showEqualizerModal(BuildContext context) {
+  void _showEqualizerModal(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.surfaceDark,
