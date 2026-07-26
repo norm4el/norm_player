@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:norm_player/data/data_source/shared_preferences/shared_perf.dart';
+import 'package:norm_player/presentation/providers/current_playing/music_player_provider.dart';
 
 enum EqualizerPreset { normal, bassBoost, rock, electronic, vocal }
 
@@ -61,6 +63,7 @@ class EqualizerNotifier extends StateNotifier<EqualizerSettings> {
         bassGain: bass ?? 0.5,
         trebleGain: treble ?? 0.5,
       );
+      _applyToPlayer();
     } catch (_) {}
   }
 
@@ -93,16 +96,19 @@ class EqualizerNotifier extends StateNotifier<EqualizerSettings> {
 
     state = state.copyWith(preset: preset, bassGain: bass, trebleGain: treble);
     _save();
+    _applyToPlayer();
   }
 
   void setBass(double val) {
     state = state.copyWith(bassGain: val);
     _save();
+    _applyToPlayer();
   }
 
   void setTreble(double val) {
     state = state.copyWith(trebleGain: val);
     _save();
+    _applyToPlayer();
   }
 
   void _save() {
@@ -111,5 +117,26 @@ class EqualizerNotifier extends StateNotifier<EqualizerSettings> {
       SharedPrefImpl.pref.setDouble(_bassKey, state.bassGain);
       SharedPrefImpl.pref.setDouble(_trebleKey, state.trebleGain);
     } catch (_) {}
+  }
+
+  Future<void> _applyToPlayer() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      if (!androidEqualizer.enabled) {
+        await androidEqualizer.setEnabled(true);
+      }
+      if (!androidLoudnessEnhancer.enabled) {
+        await androidLoudnessEnhancer.setEnabled(true);
+      }
+
+      // LoudnessEnhancer target gain in millibels. bassGain (0.0 to 1.0) -> max 2000 mB
+      final bassGainMB = ((state.bassGain - 0.5) * 4000).clamp(-2000, 2000);
+      await androidLoudnessEnhancer.setTargetGain(bassGainMB / 1000.0);
+
+      // We could use Equalizer bands here if we want more granular control,
+      // but LoudnessEnhancer works great for simple Bass/Volume boost.
+    } catch (e) {
+      debugPrint('Equalizer error: $e');
+    }
   }
 }
