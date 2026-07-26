@@ -151,6 +151,80 @@ class HomePage extends ConsumerWidget {
                       const SizedBox(width: 12),
                     ],
                   ),
+                  // Выделенный Блок «Умная Моя Волна ⚡» в самом верху Главного меню
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: GestureDetector(
+                        onTap: () {
+                          final allSongs = data;
+                          if (allSongs.isNotEmpty) {
+                            final seed = allSongs[Random().nextInt(allSongs.length)];
+                            ref.read(smartWaveProvider).startSmartWave(seed);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('⚡ Умная Волна запущен: микс на основе ${seed.artist}!'),
+                                backgroundColor: AppTheme.primaryColor,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF8E2DE2).withOpacity(0.35),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white24,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.bolt_rounded, color: Colors.yellowAccent, size: 32),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Умная Моя Волна ⚡',
+                                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 20, fontWeight: FontWeight.extrabold),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Бесконечный авто-микс под твой вкус без интернета.',
+                                      style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                child: const Icon(Icons.play_arrow_rounded, color: Color(0xFF4A00E0), size: 24),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   // Блок "Сейчас играет"
                   ref.watch(isPlayedOnceProvider)
                       ? SliverToBoxAdapter(
