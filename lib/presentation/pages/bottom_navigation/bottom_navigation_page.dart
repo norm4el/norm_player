@@ -65,7 +65,7 @@ class _MusicBottomSheetState extends ConsumerState<MusicBottomSheet> {
                       context,
                       PageTransition(
                         type: PageTransitionType.bottomToTop,
-                        child: const PlayingPage(),
+                        child: const CurrentPlayingPage(),
                       ),
                     );
                   },

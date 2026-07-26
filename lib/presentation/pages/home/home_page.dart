@@ -204,7 +204,7 @@ class HomePage extends ConsumerWidget {
                                   children: [
                                     Text(
                                       'Умная Моя Волна ⚡',
-                                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 20, fontWeight: FontWeight.extrabold),
+                                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
