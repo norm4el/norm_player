@@ -8,18 +8,33 @@ import 'package:norm_player/utils/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // create sharepref instace
-  SharedPrefImpl.create();
-  // Just audio background
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
-    androidNotificationChannelName: 'Audio playback',
-    androidNotificationOngoing: true,
-  );
-  // await untill create object box
-  await ObjectBoxImpl.create();
+  
+  try {
+    // 1. Await SharedPreferences initialization to prevent LateInitializationError
+    await SharedPrefImpl.create();
+  } catch (e) {
+    debugPrint('SharedPrefImpl init error: $e');
+  }
 
-// run app
+  try {
+    // 2. JustAudioBackground init
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.norm_player.bg.channel.audio',
+      androidNotificationChannelName: 'Norm Player Audio Playback',
+      androidNotificationOngoing: true,
+    );
+  } catch (e) {
+    debugPrint('JustAudioBackground init error: $e');
+  }
+
+  try {
+    // 3. ObjectBox init
+    await ObjectBoxImpl.create();
+  } catch (e) {
+    debugPrint('ObjectBoxImpl init error: $e');
+  }
+
+  // 4. Run app safely
   runApp(
     const ProviderScope(
       child: MainApp(),
@@ -33,14 +48,12 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      /// method for hiding soft keyboard
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.dark,
-        // navigate to loading screen
         home: const LoadingScreen(),
       ),
     );

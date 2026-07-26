@@ -93,15 +93,17 @@ class LocalPlaylistsNotifier extends StateNotifier<List<LocalPlaylist>> {
   }
 
   void addSongToPlaylist(String playlistId, String songPath) {
+    if (playlistId.isEmpty || songPath.trim().isEmpty) return;
+    final targetPath = songPath.trim();
     state = [
       for (final p in state)
         if (p.id == playlistId)
           LocalPlaylist(
             id: p.id,
             name: p.name,
-            songPaths: p.songPaths.contains(songPath)
+            songPaths: p.songPaths.contains(targetPath)
                 ? p.songPaths
-                : [...p.songPaths, songPath],
+                : [...p.songPaths, targetPath],
             createdAt: p.createdAt,
           )
         else
@@ -111,13 +113,14 @@ class LocalPlaylistsNotifier extends StateNotifier<List<LocalPlaylist>> {
   }
 
   void removeSongFromPlaylist(String playlistId, String songPath) {
+    final targetPath = songPath.trim();
     state = [
       for (final p in state)
         if (p.id == playlistId)
           LocalPlaylist(
             id: p.id,
             name: p.name,
-            songPaths: p.songPaths.where((path) => path != songPath).toList(),
+            songPaths: p.songPaths.where((path) => path.trim() != targetPath).toList(),
             createdAt: p.createdAt,
           )
         else
